@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Klick-saver Plus
-// @version        1.65
+// @version        1.66
 // @namespace      http://kobe.cool.ne.jp/yehman/
 // @copyright      © 2009 Nathan Sharfi, Shawn Yeh, and Nick England
 // @license        GPL; http://www.gnu.org/copyleft/gpl.html
@@ -22,6 +22,15 @@
 // ==/UserScript==
 
 /* Changes:
+  Version 1.67/Hellion:
+    Newer versions of Greasemonkey insist that only ints, strings, or bools can be used in
+    GM_setValue() in a way that's more strict than usual. This update fixes this so doCombat()
+    doesn't die.
+    
+
+  Version 1.66/adiabatic:
+    Reenable finisher.
+
   Version 1.65/adiabatic:
     Code and comment cleanup.
     Removed useless getFormByName().
@@ -29,7 +38,8 @@
   Version 1.64/adiabatic:
   	fight.php URLs now look like "...fight.php?ireallymeanit=34234234".
 	Adjusted @includes to compensate. (fix via AmandaKerik and Spar Klee)
-  Version 1.63/adiabatic:
+
+Version 1.63/adiabatic:
 	Fix auto-item-usage.
 
   Version 1.62/adiabatic:
@@ -594,14 +604,15 @@ function grabCombatInfo(){
 }
 
 function doCombat() {
-	if (GM_getValue("fightTurns") < GM_getValue('turnLimit')) {
+	if (GM_getValue("fightTurns") < GM_getValue("turnLimit")) {
 
-		GM_setValue("autoUse", GM_getValue("autoUse") % 4);
-		GM_setValue("autoHeal", GM_getValue("autoHeal") % 3);
-		if((GM_getValue("autoHeal") == 2 && GM_getValue("autoUse") > 0 && GM_getValue("autoUse") < 4) || GM_getValue("autoHeal") == 1)
+		var useThis = GM_getValue("autoUse") % 4;
+		var healThis = GM_getValue("autoHeal") % 3;
+		GM_setValue("autoUse",doThis);
+		GM_setValue("autoHeal", healThis);
+		if((healThis == 2 && useThis > 0 && useThis < 4) || healThis == 1)
 			doAutoHeal();
-
-		switch (GM_getValue("autoUse")) {
+		switch(useThis) {
 			case 1:
 			  addEventListener(window, 'load', function() { document.forms.namedItem("attack").submit(); }, true);
 			break;
@@ -636,6 +647,9 @@ function doCombat() {
 				document.forms.namedItem("skill").submit();
 			  }, true);
 			break;
+			default:
+				GM_log("whuh?");
+			break;
 		}
 	}else if (GM_getValue("finisher") != 0){
 		  addEventListener(window, 'load', function() { 
@@ -644,7 +658,10 @@ function doCombat() {
 				document.forms.namedItem("attack").submit();
 				return;
 			}
-			var whichSkillRef = getSelectByName("whichskill");  if (!whichSkillRef) return; // this.document.skill.whichskill;
+			var whichSkillRef = document.getElementsByName("whichskill")[0];
+			
+			if (!whichSkillRef) return;
+			
 			for(var i = 0; i < whichSkillRef.length; i++)
 				if(whichSkillRef.options[i].value == GM_getValue("finisher"))
 					whichSkillRef.selectedIndex = i;
@@ -656,7 +673,8 @@ function doCombat() {
 			var costText = whichSkillRef.options[whichSkillRef.selectedIndex].text.match(/\d+/g);
 			if (costText)
 				GM_setValue("MP", GM_getValue("MP") - costText[0]);
-			this.document.skill.submit(); 
+			document.forms.namedItem("skill").submit();		
+//			this.document.skill.submit(); 
 		  }, true);
 	}else
 		setToRed();
@@ -767,7 +785,7 @@ function setPrefs() {
 	newButton.setAttribute('style','margin-top:.1em;');
 	newButton.setAttribute('id','newButton');
 	addEventListener(newButton, 'click', function(){
-		GM_setValue("finisher", this.form.whichattack.value);
+		GM_setValue("finisher", document.getElementsByName("whichattack").value);
 		this.value = "Finisher - " + finisherName(GM_getValue("finisher"));
 	}, true);
 	var inputArray = document.getElementById('autohelp').getElementsByTagName('input');
