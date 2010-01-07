@@ -1,8 +1,9 @@
 // ==UserScript==
 // @name           Klick-saver Plus
-// @version        1.66
+// @version        1.68
 // @namespace      http://kobe.cool.ne.jp/yehman/
-// @copyright      © 2009 Nathan Sharfi, Shawn Yeh, and Nick England
+// @homepage       http://www.frogorbits.com/kol/
+// @copyright      © 2010 Nathan Sharfi, Shawn Yeh, and Nick England
 // @license        GPL; http://www.gnu.org/copyleft/gpl.html
 // @author         Shawn Yeh (http://kobe.cool.ne.jp/yehman/)
 // @author         Nick England
@@ -11,6 +12,7 @@
 // @contributor    Hellion
 // @include        *kingdomofloathing.com/main_c.html
 // @include        *kingdomofloathing.com/main.html
+// @include        *kingdomofloathing.com/game.php
 // @include        *kingdomofloathing.com/fight.php*
 // @include        *kingdomofloathing.com/charpane.php
 // @include        *kingdomofloathing.com/adventure.php*
@@ -20,74 +22,6 @@
 // @include        http://127.0.0.1:*
 // @description    This script adds buttons to your charpane which let you select Auto(W)eapon, (I)tem, (S)kill, (A)dventure, (H)eal, (O)lfact, and/or (Q)uit on. Hover your mouse over each button to see what it does when clicked or double-clicked.
 // ==/UserScript==
-
-/* Changes:
-  Version 1.67/Hellion:
-    Newer versions of Greasemonkey insist that only ints, strings, or bools can be used in
-    GM_setValue() in a way that's more strict than usual. This update fixes this so doCombat()
-    doesn't die.
-    
-
-  Version 1.66/adiabatic:
-    Reenable finisher.
-
-  Version 1.65/adiabatic:
-    Code and comment cleanup.
-    Removed useless getFormByName().
-    
-  Version 1.64/adiabatic:
-  	fight.php URLs now look like "...fight.php?ireallymeanit=34234234".
-	Adjusted @includes to compensate. (fix via AmandaKerik and Spar Klee)
-
-Version 1.63/adiabatic:
-	Fix auto-item-usage.
-
-  Version 1.62/adiabatic:
-	Tweak the metadata block to be less redundant, @description to be more succinct,
-	and add	tooltips to the buttons so people don't have to guess what they do.
-	
-  Version 1.61/Hellion:	incorporate adiabatic's GM 3.5 fixes into the olfaction-enabled version.  tweak to try to eliminate double-casting of olfaction.
-  Version 1.6/adiabatic:	not only is 'this.document.attack' kaput in 3.5, so's 'this.document.skill.whichskill'
-				(referring to select[name=whichskill]). Autoskill works now.
-  version 1.52/adiabatic:In Firefox 3.5, 'this.document.attack' doesn't refer to a working object. The two references
-				to this	have now been changed to getAttackForm(), written by me. The script appears to be marginally slower.
-   Version 1.51/Hellion:	Fix a bug with Olfaction detection while Smooth Movements is active, or while in Compact mode.
-   Version 1.5/Hellion:	Incorporate Olfaction/StopOnMonster from Lukifer's mods to an old version of the script.
-   Version 1.4:	New:  Finishers are in the script now, they are activated when the turnLimit is reached.
-				Accessed under Account Menu -> Choose Auto-Attack Options.
-				Stops auto-adventure when items in the STOP_LIST drops, and when leveling up.
-	-yehman		  Toggled by right clicking 'A' and indicated by a darker green color.
-				AutoHeal can toggle between two modes also.  The lighter color heals whenever, the darker
-				  color heals only when an Auto-use is active. (i.e. when 'W','I', or 'S' is green)
-				AutoHeal keeps track of previous non-healing skill, which auto-use-skill will use.
-				Auto-use-item and -skill will pause if no item or skill is selected.
-				MP gain and loss now recorded from combat.  Pith-helmet-like gains still not kept track.
-				Stop auto-adventure when HP drops to zero from losing a fight, checks before Pith-helmet gains.
-			Fixes:  MP and HP grabbing codes now correctly grab them at the first round of combat.
-				  Entering zero when doubleclicking 'A' now correctly disables auto-adventuring.
-				  Auto-adventuring stops correctly for non-combat adventures.
-				  Skill cost checks re-implemented.  Somehow, the code for this and the CancelAtEnd were missing.
-					This means auto-skill will not trigger if MP is too low.
-				  Jalapeno saucesphere calculations are correct now.
-			Changes:  Adventure counter works differently now.  Instead of straight counting down, it remembers the
-					number of adventures left to stop on, and displays the difference.
-				    Pushing the buttons in charpane makes the effect persist between fights, while pushing the 
-					buttons in the combat screen only makes it last that one adventure.
-				    When auto-healing fails, the 'H' button turns red instead of poping up an alert.
-				    Restructured code for easier reading. (those nasty 7-layer-nested-if statements.)
-				    Optimized code to be slightly less resource intensive.
-   Version 1.3/CDM:  The value you type when double clicking H is now the number of HP below max when healing is cast.
-   Version 1.2a/CDM:  Support compact and normal mode
-   Version 1.2/CDM:  Made it reset auto-stop when doing auto-adventure, support only compact mode.
-   Version 1.1a: Added auto-healing and MP checking stuff from my old script into yehman's new one.
-   Version 1.1:  Auto-use will pause after specified number of rounds, and when item- or skill-use fails.
-		     Auto-adventure logic shifted to fight.php and can now be set to repeat for X turns.
-   Version 1.01:  Fixed minor bug of counter not resetting in certain situations.
-   Version 1.0:  Fixed compatibility problem with Frameworks and KolWiki scripts. (thanks Picklish)
-		     Support for fullmode, and made counter toggleable.
-   Version 0.9(Initial release):  Buttons added, plus automation of 'use item' and 'use skill.'
-   Version 0.2 - 0.7(Pre-release):  Automated 'use weapon' and 'adventure again.'
-*/
 
 const COUNTER = 1;  		//-1: off  0: start on zero  1: start on one
 const AUTO_USE_LIMIT = 26;	//the default round at which autoUse will be temporarily disabled
@@ -117,6 +51,7 @@ addEventListener(window, 'unload', unregisterEventListeners, false);
 
 switch(document.location.pathname) {
   case "/main_c.html":
+  case "/game.php":
   case "/main.html":
 	GM_log("Initialize Values.");
 	GM_setValue("autoUse", 0);		//0: off  1: weapon  2: item  3: skill 4: heal 5: olfact 6: quit
@@ -502,31 +437,25 @@ function grabMPHP() {
 	var charpaneDoc = top.document.getElementsByName('charpane')[0].contentDocument.getElementsByTagName("body")[0];
 	if (!charpaneDoc) return;
 	var pageBodyText = charpaneDoc.innerHTML;
-	var HMP = pageBodyText.match(/\d+\&nbsp;\/\&nbsp;\d+/g); 
-	if (HMP) {
-		if (HMP[0].indexOf("/") != -1) {
-			GM_setValue("HP",Number(HMP[0].substring(0, HMP[0].indexOf("/")-6)));
-			//GM_log("HP="+GM_getValue("HP"));
-			GM_setValue("MaxHP",Number(HMP[0].substring(HMP[0].indexOf("/")+7,HMP[0].length)));
-			//GM_log("MaxHP="+GM_getValue("MaxHP"));
-		}if (HMP[1].indexOf('/') != -1) {
-			GM_setValue("MP",Number(HMP[1].substring(0, HMP[1].indexOf("/")-6)));
-			//GM_log("MP="+GM_getValue("MP"));
-			GM_setValue("MaxMP",Number(HMP[1].substring(HMP[1].indexOf("/")+7,HMP[1].length)));
-			//GM_log("MaxMP="+GM_getValue("MaxMP"));
-		}
-	}else if (HMP = pageBodyText.match(/\d+\/\d+/g)) {
-		if (HMP[0].indexOf("/") != -1) {
-			GM_setValue("HP",Number(HMP[0].substring(0, HMP[0].indexOf("/"))));
-			//GM_log("HP="+GM_getValue("HP"));
-			GM_setValue("MaxHP",Number(HMP[0].substring(HMP[0].indexOf("/")+1,HMP[0].length)));
-			//GM_log("MaxHP="+GM_getValue("MaxHP"));
-		}if (HMP[1].indexOf('/') != -1) {
-			GM_setValue("MP",Number(HMP[1].substring(0, HMP[1].indexOf("/"))));
-			//GM_log("MP="+GM_getValue("MP"));
-			GM_setValue("MaxMP",Number(HMP[1].substring(HMP[1].indexOf("/")+1,HMP[1].length)));
-			//GM_log("MaxMP="+GM_getValue("MaxMP"));
-		}
+	var HP = pageBodyText.match(/onclick='doc\("hp"\);'>(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)<\/span>/);
+	var MP = pageBodyText.match(/onclick='doc\("mp"\);'>(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)<\/span>/);
+	
+	// Set HP values.
+	if (HP) {
+		GM_setValue("HP", Number(HP[1]));
+		GM_setValue("MaxHP", Number(HP[2]));
+	}
+	else {
+		GM_log("grabMPHP(): Error - Regex used to extract HP/MaxXP failed to match anything.");
+	}
+	
+	// Set MP values.
+	if (MP) {
+		GM_setValue("MP", Number(MP[1]));
+		GM_setValue("MaxMP", Number(MP[2]));
+	}
+	else {
+		GM_log("grabMPHP(): Error - Regex used to extract MP/MaxMP failed to match anything.");
 	}
 }
 
@@ -608,7 +537,7 @@ function doCombat() {
 
 		var useThis = GM_getValue("autoUse") % 4;
 		var healThis = GM_getValue("autoHeal") % 3;
-		GM_setValue("autoUse",doThis);
+		GM_setValue("autoUse",useThis);
 		GM_setValue("autoHeal", healThis);
 		if((healThis == 2 && useThis > 0 && useThis < 4) || healThis == 1)
 			doAutoHeal();
