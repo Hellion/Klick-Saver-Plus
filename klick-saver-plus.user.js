@@ -10,6 +10,7 @@
 // @contributor    CDMoyer
 // @contributor    adiabatic (http://www.frogorbits.com/)
 // @contributor    Hellion
+// @contributor    MutantPickles
 // @include        *kingdomofloathing.com/main_c.html
 // @include        *kingdomofloathing.com/main.html
 // @include        *kingdomofloathing.com/game.php
