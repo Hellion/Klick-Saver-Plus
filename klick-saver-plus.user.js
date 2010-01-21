@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Klick-saver Plus
-// @version        1.68
+// @version        1.69
 // @namespace      http://kobe.cool.ne.jp/yehman/
 // @homepage       http://www.frogorbits.com/kol/
 // @copyright      © 2010 Nathan Sharfi, Shawn Yeh, and Nick England
@@ -44,6 +44,8 @@ const STOP_LIST = "abridged dictionary, "+
 			"baseball, "+
 			"enchanted bean";
 
+var turnsplayed = 0;
+
 // The event manager will unload all registered event on page unload, including itself.
 // Note only by using addEventListener(target,...) will the event be registered, and not
 // target.addEventListener(...), as the prototype function was not replaced.
@@ -66,9 +68,9 @@ switch(document.location.pathname) {
 	GM_setValue("MaxHP",0);
 	GM_setValue("MaxMP",0);
 	GM_setValue("skillCost",1);
-	GM_setValue("cancelAtEnd",0);
+	GM_setValue("cancelAtEnd",0);	//flag for use by buttons that attack or use item until end of combat.
 	GM_setValue("autoHeal",0);		//0: off(white)  1: on(green)  2: half(dark green)  4-5: warn(red)
-	GM_setValue("MonsterDamage",0);	//Smallest Monster damage recieved from this fight
+	GM_setValue("MonsterDamage",0);	//Smallest Monster damage received from this fight
 	GM_setValue("keepHPHigh",0);		// set > 0 for healing at XX below max HP
 	if (!GM_getValue("turnLimit")) GM_setValue("turnLimit", AUTO_USE_LIMIT);
 	if (!GM_getValue("finisher")) GM_setValue("finisher", 0);
@@ -129,17 +131,19 @@ switch(document.location.pathname) {
 		}
 	}
 	
+// "Quit adventuring when you hit this string" processing.
 	if(GM_getValue("stopGo"))
 	{	if(document.body.innerHTML.indexOf(GM_getValue("stopString")) != -1)
-		{	GM_setValue("repeatAdv", false);
-			//GM_setValue("stopGo", false);
+		{	GM_setValue("repeatAdv", 0);
+			//GM_setValue("stopGo", false);				// uncomment this to force re-clicking in order to re-halt.
 			return false;
-	}	}
+		}	
+	}
 //-----------------------
-	if(GM_getValue("fightTurns") == COUNTER)
+	if(GM_getValue("fightTurns") == COUNTER)	// Grab your HP and MP from the charpane during the first round of combat.
 		grabMPHP();
 
-	if (!body.match(/Adventure Again |Go back to /g)){
+	if (!body.match(/Adventure Again |Go back to /g)){		// still in combat
 		var turns = GM_getValue("fightTurns");
 
 		//Adds Round Counter to page, set COUNTER to -1 to turn counter off
@@ -155,8 +159,12 @@ switch(document.location.pathname) {
 		doCombat();
 	}
 	//end of combat
-	else 
+	else {
+		if (!body.match(/WINWINW/)) {	// end of combat and no win marker?
+			GM_setValue("repeatAdv",0); // set flag to not go again.
+		}
 		doAutoAdv();
+	}
 	break;
 
   case "/adventure.php":
@@ -171,13 +179,16 @@ switch(document.location.pathname) {
 }
 
 function drawButtons() {
-
+	var charpaneHead = top.document.getElementsByName('charpane')[0].contentDocument.getElementsByTagName("head")[0];
+	var pageHeadText = charpaneHead.innerHTML;
+	turnsplayed = parseInt(pageHeadText.split('played =')[1].split(';')[0]);
+	GM_setValue("turnsplayed", turnsplayed);
 	//render the button layout
-	// the variable needtoolfact is a flag to indicate whether or not "On the Trail" is a currently active effect (i.e. are we already olfacting something).  If True, then we need to olfact ASAP.
+	// the variable needtoolfact is a flag to indicate whether or not "On the Trail" is a currently active effect
+	// (i.e. are we already olfacting something).  If True, then we need to olfact ASAP.
 	var needtoolfact = false;
 	var fullTest = document.getElementsByTagName("a")[0]; if (!fullTest) return;
 	if (fullTest.innerHTML.indexOf("/otherimages/") == -1){		// lacking a graphic from the otherimages directory, we assume that we are in Compact Mode.
-//		GM_log("did not find /otherimages/: assume compact mode");
 		var insertAt = document.getElementsByTagName("hr")[0];
 		var newHr = document.createElement('hr');
 		newHr.setAttribute('width','50%');
@@ -189,8 +200,6 @@ function drawButtons() {
 // find "On the Trail" in compact mode by using the Alt tags on images.
 			var imgs = document.getElementsByTagName('img'); var len = imgs.length;
 			for(var i=0; i<len; i++) {
-//				if(imgs[i].src.indexOf("/footprints.") != -1)
-//				GM_log("alt["+i+"]="+imgs[i].alt);
 				if (imgs[i].alt.indexOf("On the Trail") != -1) {
 					needtoolfact = false; i=len; break; 
 				}
@@ -243,8 +252,8 @@ function drawButtons() {
 		tdArray[GM_getValue("autoUse") % 4 - 1].setAttribute('class',(GM_getValue("autoUse") < 4)?'on':'warn');
 	if (GM_getValue("repeatAdv"))
 		tdArray[3].setAttribute('class',(GM_getValue("repeatAdv") < 2)?'on':'half');
-	if (GM_getValue("stopAdvAt") < adventuresLeft && GM_getValue("stopAdvAt") > 0)
-		tdArray[3].innerHTML = adventuresLeft - GM_getValue("stopAdvAt");
+		if (GM_getValue("stopAdvAt") > turnsplayed && GM_getValue("stopAdvAt") > 0)
+		tdArray[3].innerHTML = GM_getValue("stopAdvAt") - turnsplayed;
 	if (GM_getValue("autoHeal"))
 		tdArray[4].setAttribute("class",(GM_getValue("autoHeal") < 3)?((GM_getValue("autoHeal") == 1)?'on':'half'):'warn');
 	if (GM_getValue("keepHPHigh"))
@@ -328,12 +337,12 @@ function drawButtons() {
 				if (adventureLimit > adventuresLeft) adventureLimit = adventuresLeft;
 				else if (adventureLimit < 0 || !adventureLimit) adventureLimit = 0;
 				if (adventureLimit > 0) {
-					GM_setValue("stopAdvAt", adventuresLeft - adventureLimit);
+					GM_setValue("stopAdvAt", turnsplayed + adventureLimit);
 					GM_setValue("repeatAdv", 1);
 					this.innerHTML = adventureLimit;
 					this.setAttribute('class','on');
 				}else if (adventureLimit == 0){
-					GM_setValue("stopAdvAt", 0);
+					GM_setValue("stopAdvAt", turnsplayed);
 					GM_setValue("repeatAdv", 0);
 					this.innerHTML = 'A';
 					this.setAttribute('class','off');
@@ -436,10 +445,18 @@ function drawButtons() {
 //
 function grabMPHP() {
 	var charpaneDoc = top.document.getElementsByName('charpane')[0].contentDocument.getElementsByTagName("body")[0];
+	var charpaneHead = top.document.getElementsByName('charpane')[0].contentDocument.getElementsByTagName("head")[0];
 	if (!charpaneDoc) return;
+	pageHeadText = charpaneHead.innerHTML;
+	turnsplayed = parseInt(pageHeadText.split('played =')[1].split(';')[0]);
+	GM_setValue("turnsplayed",turnsplayed);
 	var pageBodyText = charpaneDoc.innerHTML;
+// full mode:
 	var HP = pageBodyText.match(/onclick='doc\("hp"\);'>(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)<\/span>/);
 	var MP = pageBodyText.match(/onclick='doc\("mp"\);'>(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)<\/span>/);
+// compact mode: 
+	if (!HP) HP = pageBodyText.match(/HP:(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)/);
+	if (!MP) MP = pageBodyText.match(/MP:(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)/);
 	
 	// Set HP values.
 	if (HP) {
@@ -578,7 +595,8 @@ function doCombat() {
 			  }, true);
 			break;
 			default:
-				GM_log("whuh?");
+			// 	no automatic combat action selected.
+			//	GM_log("whuh?");
 			break;
 		}
 	}else if (GM_getValue("finisher") != 0){
@@ -595,7 +613,7 @@ function doCombat() {
 			for(var i = 0; i < whichSkillRef.length; i++)
 				if(whichSkillRef.options[i].value == GM_getValue("finisher"))
 					whichSkillRef.selectedIndex = i;
-			GM_log("Using finisher: "+GM_getValue("finisher"));
+			// GM_log("Using finisher: "+GM_getValue("finisher"));
 			if (whichSkillRef.selectedIndex == 0){
 				setToRed();
 				return;
@@ -665,24 +683,30 @@ function doAutoAdv() {
 	grabCombatInfo();
 	//GM_log("MP: "+GM_getValue("MP")+".  skillCost: "+GM_getValue("skillCost"));
 	//GM_log("HP: "+GM_getValue("HP")+".  MonsterDamage: "+GM_getValue("MonsterDamage"));
-	//GM_log("[doAutoAdv]stopAdvAt: "+GM_getValue("stopAdvAt")+" adventuresLeft: "+GM_getValue("adventuresLeft"));
+//	GM_log("stopAdvAt: "+GM_getValue("stopAdvAt")+" adventuresLeft: "+GM_getValue("adventuresLeft")+" turns played:" +GM_getValue("turnsplayed"));
+	
+	var stopAdvAt = GM_getValue("stopAdvAt");
 	var body = document.getElementsByTagName("body")[0].innerHTML;
-	var aquiredStuff = body.match(/item: <b>[^<]+/g);
-	if (GM_getValue("repeatAdv") == 3 && aquiredStuff){
-		for (var i = 0; i < aquiredStuff.length; i++){
-			//GM_log("item" +i+ ": " + aquiredStuff[i].slice(9));
-			if (STOP_LIST.indexOf(aquiredStuff[i].slice(9)) >= 0)
-				GM_setValue("repeatAdv", 0);  //stop-listed item aquired
+	var acquiredStuff = body.match(/item: <b>[^<]+/g);
+	if (GM_getValue("repeatAdv") == 3 && acquiredStuff){
+		for (var i = 0; i < acquiredStuff.length; i++){
+			//GM_log("item" +i+ ": " + acquiredStuff[i].slice(9));
+			if (STOP_LIST.indexOf(acquiredStuff[i].slice(9)) >= 0)
+				GM_setValue("repeatAdv", 0);  //stop-listed item acquired
 		}
 	}
-	if ( (GM_getValue("MP") < GM_getValue("skillCost") && GM_getValue("autoUse")%4 == 3)//MP less than cast amount
-	   ||(GM_getValue("stopAdvAt") == GM_getValue("adventuresLeft") - 1)			//Auto-adventure limit reached
+	if ( (GM_getValue("MP") < GM_getValue("skillCost") && GM_getValue("autoUse")%4 == 3)//MP less than cast amount for autoskill
+	   || ((stopAdvAt > 0) && (stopAdvAt <= GM_getValue("turnsplayed") + 1))			//Auto-adventure limit reached
 	   ||(GM_getValue("HP") < 1)										//Beaten up
 	   ||(GM_getValue("repeatAdv") == 3 && body.match(/You gain (?:a|some) Level/g))	//Level up
-	   ||(GM_getValue("MonsterDamage") * 1.1 >= GM_getValue("HP"))				//Monster can kill you in one hit
-	   )
+	   ||(GM_getValue("MonsterDamage") * 1.1 >= GM_getValue("HP"))						//Monster could kill you in one hit
+	   ) {
+		// GM_log("stopping for some reason.");
 		GM_setValue("repeatAdv", 0);
-
+		if (stopAdvAt >= GM_getValue("turnsplayed") + 1) {		// if we halted because we finished running the requested # of turns,
+			GM_setValue("stopAdvAt", 0);						// reset turncounter so that simply clicking the A will run all.
+		}
+	}
 	if (GM_getValue("repeatAdv"))
 		addEventListener(window, 'load', function() {
 			var anchors = document.getElementsByTagName("a");
@@ -748,7 +772,6 @@ function setPrefs() {
 // when the page unloads.
 function addEventListener(target, event, listener, capture)
 {
-    //GM_log('registering: '+ event);
     registeredEventListeners.push( [target, event, listener, capture] );
     target.addEventListener(event, listener, capture);
 }
@@ -757,7 +780,6 @@ function unregisterEventListeners(event)
     for (var i = 0; i < registeredEventListeners.length; i++)
     {
         var rel = registeredEventListeners[i];
-        //GM_log('unloading: ' + rel[1]);
         rel[0].removeEventListener(rel[1], rel[2], rel[3]);
     }
     window.removeEventListener('unload', unregisterEventListeners, false);
