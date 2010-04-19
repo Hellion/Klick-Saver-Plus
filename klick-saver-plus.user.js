@@ -18,6 +18,7 @@
 // @include        *kingdomofloathing.com/charpane.php
 // @include        *kingdomofloathing.com/adventure.php*
 // @include        *kingdomofloathing.com/choice.php
+// @include        *kingdomofloathing.com/ocean.php
 // @include        *kingdomofloathing.com/account.php
 // @exclude        forums*kingdomofloathing.com
 // @include        http://127.0.0.1:*
@@ -27,6 +28,7 @@
 //			- improved HP/MP reading
 //			- a little more coverage of possible error conditions to keep execution going
 //			- "M" (Use Last Macro) button replaces the now-useless "H" (Heal stasis-style) button.
+//			- option to always click "Pick pocket" and "Pick pocket again" buttons (set on Account page, under "Autoattack" options.)
 
 const COUNTER = 1;  		//-1: off  0: start on zero  1: start on one
 const AUTO_USE_LIMIT = 26;	//the default round at which autoUse will be temporarily disabled
@@ -61,10 +63,10 @@ switch(document.location.pathname) {
   case "/game.php":
   case "/main.html":
 	GM_log("Initialize Values.");
-	GM_setValue("autoUse", 0);		//0: off  1: weapon  2: item  3: skill 4: heal 5: olfact 6: quit
+	GM_setValue("autoUse", 0);		//0: off  1: weapon  2: item  3: skill  4: macro
 	GM_setValue("repeatAdv", 0);		//0: off  1: normal  3: stop on specific item drops
 	GM_setValue("fightTurns", COUNTER);
-	GM_setValue("stopAdvAt", 0);
+	GM_setValue("stopAdvAt", 0);		// stop adventuring when our turncount reaches this number.
 	GM_setValue("adventuresLeft", 0);
 	GM_setValue("storedSkill", 'none');
 	GM_setValue("MP",0);
@@ -75,7 +77,6 @@ switch(document.location.pathname) {
 	GM_setValue("cancelAtEnd",0);	//flag for use by buttons that attack or use item until end of combat.
 	GM_setValue("autoHeal",0);		//0: off(white)  1: on(green)  2: half(dark green)  4-5: warn(red)
 	GM_setValue("MonsterDamage",0);	//Smallest Monster damage received from this fight
-	GM_setValue("keepHPHigh",0);		// set > 0 for healing at XX below max HP
 	if (!GM_getValue("turnLimit")) GM_setValue("turnLimit", AUTO_USE_LIMIT);
 	if (!GM_getValue("finisher")) GM_setValue("finisher", 0);
 	break;
@@ -178,6 +179,8 @@ switch(document.location.pathname) {
 
   case "/adventure.php":
   case "/choice.php":
+  case "/ocean.php":
+
 	if(GM_getValue("repeatAdv"))
 		doAutoAdv();
 	break;
@@ -266,12 +269,8 @@ function drawButtons() {
 		tdArray[(GM_getValue("autoUse") % 5) - 1].setAttribute('class',(GM_getValue("autoUse") < 5)?'on':'warn');
 	if (GM_getValue("repeatAdv"))
 		tdArray[4].setAttribute('class',(GM_getValue("repeatAdv") < 2)?'on':'half');
-		if (GM_getValue("stopAdvAt") > turnsplayed && GM_getValue("stopAdvAt") > 0)
+	if (GM_getValue("stopAdvAt") > turnsplayed && GM_getValue("stopAdvAt") > 0)
 		tdArray[4].innerHTML = GM_getValue("stopAdvAt") - turnsplayed;
-//	if (GM_getValue("autoHeal"))
-//		tdArray[4].setAttribute("class",(GM_getValue("autoHeal") < 3)?((GM_getValue("autoHeal") == 1)?'on':'half'):'warn');
-//	if (GM_getValue("keepHPHigh"))
-//		tdArray[4].innerHTML = "H";
 	if (GM_getValue("olfact"))
 		tdArray[5].setAttribute('class','on');
 	if (GM_getValue("stopGo"))
@@ -376,37 +375,6 @@ function drawButtons() {
 				}
 			}, true);
 		      break;
-//		   case 5:	// H
-//			addEventListener(tdArray[i], 'contextmenu', function(event) {
-//				if (event.button == 2){
-//					event.stopPropagation();
-//					event.preventDefault();
-//				}
-//			}, true);
-//			addEventListener(tdArray[i], 'mousedown', function(event) {
-//				if (event.button == 2 && GM_getValue("autoHeal") != 2){
-//				  GM_setValue("autoHeal", 2);
-//				  this.setAttribute('class','half');
-//				}else if (event.button == 0 && GM_getValue("autoHeal") != 1){
-//				  GM_setValue("autoHeal", 1);
-//				  this.setAttribute('class','on');
-//				}else{
-//				  GM_setValue("autoHeal", 0);
-//				  this.setAttribute('class','off');
-//				}
-//			}, true);
-//			addEventListener(tdArray[i], 'dblclick', function(event) {
-//				var KeepHPhighInput = parseInt(prompt('AutoHeal at XX below max HP?'));
-//				if (KeepHPhighInput > 0) {
-//					GM_setValue("keepHPHigh", KeepHPhighInput);
-//					this.innerHTML = "H";
-//				}
-//				else{
-//					GM_setValue("keepHPHigh", 0);
-//					this.innerHTML = "h";
-//				}
-//			}, true);
-//			break;
 		   case 5:	// O
 			addEventListener(tdArray[i], 'mouseup', function(event) {
 				if (GM_getValue("olfact")){
@@ -582,11 +550,13 @@ function doCombat() {
 	if (GM_getValue("fightTurns") < GM_getValue("turnLimit")) {
 
 		var useThis = GM_getValue("autoUse") % 5;
-		var healThis = GM_getValue("autoHeal") % 3;
 		GM_setValue("autoUse",useThis);
-		GM_setValue("autoHeal", healThis);
-		if((healThis == 2 && useThis > 0 && useThis < 5) || healThis == 1)
-			doAutoHeal();
+
+// 		pickpocket / pickpocket again
+		if (GM_getValue("alwayspick") == 1) {
+			if (document.forms.namedItem("steal")) document.forms.namedItem("steal").submit();
+		}
+
 		switch(useThis) {
 			case 1:
 			  addEventListener(window, 'load', function() { document.forms.namedItem("attack").submit(); }, true);
@@ -642,7 +612,6 @@ function doCombat() {
 	}else if (GM_getValue("finisher") != 0){
 		  addEventListener(window, 'load', function() { 
 			if (GM_getValue("finisher") == 1){
-				//this.document.attack.submit();
 				document.forms.namedItem("attack").submit();
 				return;
 			}
@@ -667,54 +636,6 @@ function doCombat() {
 	}
 	GM_setValue("fightTurns", ++turns);
 }
-
-
-// Automatically heal when fighting
-//
-function doAutoHeal(){
-	if(GM_getValue("MonsterDamage") * SAFETY_NUMBER + 2 >= GM_getValue("HP") || (GM_getValue("keepHPHigh")>0 && GM_getValue("HP") + GM_getValue("keepHPHigh") <= GM_getValue("MaxHP"))){
-		var returnAutoUse = GM_getValue("autoUse");
-		GM_setValue("autoUse", 0);
-		//GM_log("Trying to Heal HP="+GM_getValue("HP")+" threshold is "+GM_getValue("MonsterDamage") * SAFETY_NUMBER + 2);
-		addEventListener(window, 'load', function() {
-			var SalveAvailable = 0;
-			var BandageAvailable = 0;
-			var skillIndex = this.document.skill.whichskill.selectedIndex;
-			//GM_log("Selected skillIndex: " + skillIndex);
-			for(var i=0; i < this.document.skill.whichskill.length; i++){
-				if(this.document.skill.whichskill.options[i].value == 4014)
-					SalveAvailable = i;
-				if(this.document.skill.whichskill.options[i].value == 3009)
-					BandageAvailable = i;
-			}
-			if (skillIndex != 0 && skillIndex != SalveAvailable && skillIndex != BandageAvailable){
-				var selectedSkill = this.document.skill.whichskill.options[skillIndex].value;
-				if (selectedSkill){
-					GM_setValue("storedSkill", selectedSkill);
-					GM_log("Remembering storedSkill: " + GM_getValue("storedSkill"));
-				}
-			}
-			if(SalveAvailable > 0)
-				this.document.skill.whichskill.options.selectedIndex = SalveAvailable;
-			else if(BandageAvailable > 0)
-				this.document.skill.whichskill.options.selectedIndex = BandageAvailable;
-			else {
-				GM_setValue("autoHeal", GM_getValue("autoHeal") + 3);
-				GM_setValue("autoUse", returnAutoUse);
-				if (!GM_getValue("keepHPHigh"))
-					GM_setValue("repeatAdv", 0);
-				top.document.getElementsByName('charpane')[0].contentDocument.location.reload();
-				return;
-			}
-			var costText = this.document.skill.whichskill.options[skillIndex].text.match(/\d+/g);
-			if (costText)
-				GM_setValue("MP", GM_getValue("MP") - costText[0]);
-			GM_setValue("autoUse",returnAutoUse);
-			this.document.skill.submit();
-		},true);
-	}
-}
-
 
 // Automatically click the Adventure Again button from the fight screen
 //
@@ -770,28 +691,47 @@ function doAutoAdv() {
 }
 
 function setPrefs() {
-	// newButton sets the skill to use when turnLimit is reached.
 	var newBr = document.createElement('br');
-	var newButton = document.createElement('input');
-	//for (var i = 0; i < whichAttack[0].options.length; i++)
-	//	GM_log(whichAttack[0].options[i].text);
-	newButton.setAttribute('class','button');
-	newButton.setAttribute('value',(GM_getValue("finisher") == 0)?'Change Finisher':'Finisher - '+finisherName(GM_getValue("finisher")) );
-	newButton.setAttribute('type','button');
-	newButton.setAttribute('style','margin-top:.1em;');
-	newButton.setAttribute('id','newButton');
-	addEventListener(newButton, 'click', function(){
-		GM_setValue("finisher", document.getElementsByName("whichattack").value);
-		this.value = "Finisher - " + finisherName(GM_getValue("finisher"));
-	}, true);
+	var newB2 = document.createElement('br');				// probably don't need two of these ... ?
+	var finisherButton = document.createElement('input');	// sets the skill to use when turnLimit is reached.
+	var pickButton = document.createElement('input');		// always click "PickPocket" immediately if the button is present.
+
+	finisherButton.setAttribute('class','button');
+	finisherButton.setAttribute('value',(GM_getValue("finisher") == 0)?'Change Finisher':'Finisher - '+finisherName(GM_getValue("finisher")) );
+	finisherButton.setAttribute('type','button');
+	finisherButton.setAttribute('style','margin-top:.1em;');
+	finisherButton.setAttribute('id','finisherButton');
+	addEventListener(finisherButton, 'click', finishClicked, true);
+	
+	pickButton.setAttribute('class','button');
+	pickButton.setAttribute('value',(GM_getValue("alwayspick") == 0?'Always pickpocket: NO':'Always pickpocket: YES'));
+	pickButton.setAttribute('type','button');
+	pickButton.setAttribute('style','margin-top:.1em');
+	pickButton.setAttribute('id','pickButton');
+	addEventListener(pickButton, 'click', pickClicked, true);
+	
 	var inputArray = document.getElementById('autohelp').getElementsByTagName('input');
-	for (var i = 0; i < inputArray.length; i++)
+	for (var i = 0; i < inputArray.length; i++) {
 		if(inputArray[i].value == 'Change Auto-Attack'){
 			inputArray[i].parentNode.appendChild(newBr);
-			inputArray[i].parentNode.appendChild(newButton);
+			inputArray[i].parentNode.appendChild(finisherButton);
+			inputArray[i].parentNode.appendChild(newB2);
+			inputArray[i].parentNode.appendChild(pickButton);
+			break;
 		}
-
-	//This function to parse the skill name from the text
+	}
+	function finishClicked() {		// set finisher to whatever's in the autoattack dropdown.
+		var wa = document.getElementsByName("whichattack")[0];
+		GM_setValue("finisher", wa.value);
+		this.value = "Finisher - " + finisherName(GM_getValue("finisher"));
+	}
+	function pickClicked() {		// toggle always-pickpocket option.
+		var pickpocket = GM_getValue("alwayspick",0);
+		pickpocket = 1 - parseInt(pickpocket);
+		GM_setValue("alwayspick",pickpocket);
+		this.value = pickpocket?"Always pickpocket: YES":"Always pickpocket: NO";
+	}
+	// Grab the skill name from the option list to display in the button text.
 	function finisherName(val){
 		var whichAttack = document.getElementsByName('whichattack');
 		for (var i = 0; i < whichAttack[0].options.length; i++)
