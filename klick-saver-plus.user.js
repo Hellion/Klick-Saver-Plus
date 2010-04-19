@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Klick-saver Plus
-// @version        1.69
+// @version        1.70
 // @namespace      http://kobe.cool.ne.jp/yehman/
 // @homepage       http://www.frogorbits.com/kol/
 // @copyright      © 2010 Nathan Sharfi, Shawn Yeh, and Nick England
@@ -23,6 +23,10 @@
 // @include        http://127.0.0.1:*
 // @description    This script adds buttons to your charpane which let you select Auto(W)eapon, (I)tem, (S)kill, (A)dventure, (H)eal, (O)lfact, and/or (Q)uit on. Hover your mouse over each button to see what it does when clicked or double-clicked.
 // ==/UserScript==
+// v1.70: 	- improved end-of-combat detection 
+//			- improved HP/MP reading
+//			- a little more coverage of possible error conditions to keep execution going
+//			- "M" (Use Last Macro) button replaces the now-useless "H" (Heal stasis-style) button.
 
 const COUNTER = 1;  		//-1: off  0: start on zero  1: start on one
 const AUTO_USE_LIMIT = 26;	//the default round at which autoUse will be temporarily disabled
@@ -81,7 +85,8 @@ switch(document.location.pathname) {
 	break;
 
   case "/fight.php":
-	var div = document.getElementsByTagName("b")[0]; if (!div) return;
+	var FightHeader = document.getElementsByTagName("b"); if (!FightHeader) return; 
+	FightHeader = FightHeader[0];
 	var body = document.getElementsByTagName("body")[0].innerHTML;
 //----------------------
 // Notes to the maintainer:
@@ -95,12 +100,16 @@ switch(document.location.pathname) {
 // first, a check to see if we had to save the old selected skill in order to olfact something last round.
 	if(GM_getValue("oldskill")) {	// if yes, then we have to switch back to the old skill now.	
 		var oldskill = GM_getValue("oldskill");
-		var sel = document.getElementsByName("whichskill")[0];
-		var opts = sel.childNodes; var len = opts.length;
-		for(var i=0; i<len; i++) {
-			if(opts[i].value == oldskill) {
-				sel.selectedIndex = i;
-				break;
+		var sel = document.getElementsByName("whichskill");	// if combat ends in round 0 due to autoattack or familiar action after autoattack,
+															// there is no select box.  Detect this condition.
+		if (sel) {
+			sel = document.getElementsByName("whichskill")[0];
+			var opts = sel.childNodes; var len = opts.length;
+			for(var i=0; i<len; i++) {
+				if(opts[i].value == oldskill) {
+					sel.selectedIndex = i;
+					break;
+				}
 			}
 		}
 		GM_setValue("oldskill", false);
@@ -143,13 +152,13 @@ switch(document.location.pathname) {
 	if(GM_getValue("fightTurns") == COUNTER)	// Grab your HP and MP from the charpane during the first round of combat.
 		grabMPHP();
 
-	if (!body.match(/Adventure Again |Go back to /g)){		// still in combat
+	if (!body.match(/WINWINW|Adventure Again |Go back to /g)){		// still in combat? (no win marker/ no adventure again/ no go back?)
 		var turns = GM_getValue("fightTurns");
 
 		//Adds Round Counter to page, set COUNTER to -1 to turn counter off
 		if (COUNTER >= 0){
 			strTurns = " - " + (turns >= AUTO_USE_LIMIT ? "<span style=\"color:red;\">" + "Round " + turns + "</span>" : "Round " + turns);
-			div.innerHTML += strTurns;
+			FightHeader.innerHTML += strTurns;
 		}
 		
 		addInputButtons();
@@ -158,7 +167,7 @@ switch(document.location.pathname) {
 
 		doCombat();
 	}
-	//end of combat
+	//if we get here, it must be the end of a combat
 	else {
 		if (!body.match(/WINWINW/)) {	// end of combat and no win marker?
 			GM_setValue("repeatAdv",0); // set flag to not go again.
@@ -181,7 +190,12 @@ switch(document.location.pathname) {
 function drawButtons() {
 	var charpaneHead = top.document.getElementsByName('charpane')[0].contentDocument.getElementsByTagName("head")[0];
 	var pageHeadText = charpaneHead.innerHTML;
-	turnsplayed = parseInt(pageHeadText.split('played =')[1].split(';')[0]);
+//	GM_log("pHT="+pageHeadText);
+	if (pageHeadText.indexOf('played =') != -1) {
+		turnsplayed = parseInt(pageHeadText.split('played =')[1].split(';')[0]);	// read it directly from the charpane if possible.
+	} else {
+		turnsplayed = parseInt(GM_getValue("turnsplayed"))-1;						// otherwise we just assume we spent a turn.
+	}
 	GM_setValue("turnsplayed", turnsplayed);
 	//render the button layout
 	// the variable needtoolfact is a flag to indicate whether or not "On the Trail" is a currently active effect
@@ -215,7 +229,6 @@ function drawButtons() {
 // find "On the Trail" in full mode by using the description text in the font tags.
 			var effs = document.getElementsByTagName('font'); len = effs.length;
 			for (i=0;i<len;i++) { 
-//				GM_log("effs["+i+"]="+effs[i].innerHTML);
 				if (effs[i].innerHTML.indexOf("On the Trail") != -1) { 
 					needtoolfact = false; i=len; break;
 				} 
@@ -229,10 +242,11 @@ function drawButtons() {
 	var buffer = "<tr><td title='click to autoattack'>W</td>" +
 				 "<td title='click to auto-use your last-used item'>I</td>" +
 				 "<td title='click to automatically use your last-used skill'>S</td>" +
+				 "<td title='click to automatically use your last-used combat macro'>M</td>" +
 				 "<td title='click to automatically adventure again; double-click to auto-adventure for a set number of rounds'>A</td>" +
-				 "<td title='click to autoheal'>h</td>" +
+//				 "<td title='click to autoheal'>h</td>" +
 				 "<td title='click to automatically olfact a monster'>O</td>" +
-				 "<td title='click to quit on seeing some text'>Q</td></tr>";
+				 "<td title='click to quit on seeing some text'>Q</td></tr>" ;
 	addGlobalStyle("table[id='buttonbox'] { table-layout: auto }"
 			+ "table[id='buttonbox'] { border-spacing: 1px }"
 			+ "table[id='buttonbox'] td { width: 11px }"
@@ -248,16 +262,16 @@ function drawButtons() {
 	newTable.setAttribute('id','buttonbox');
 	newTable.innerHTML = buffer;
 	var tdArray = newTable.getElementsByTagName("td");
-	if ((GM_getValue("autoUse") % 4) > 0)
-		tdArray[GM_getValue("autoUse") % 4 - 1].setAttribute('class',(GM_getValue("autoUse") < 4)?'on':'warn');
+	if ((GM_getValue("autoUse") % 5) > 0)
+		tdArray[(GM_getValue("autoUse") % 5) - 1].setAttribute('class',(GM_getValue("autoUse") < 5)?'on':'warn');
 	if (GM_getValue("repeatAdv"))
-		tdArray[3].setAttribute('class',(GM_getValue("repeatAdv") < 2)?'on':'half');
+		tdArray[4].setAttribute('class',(GM_getValue("repeatAdv") < 2)?'on':'half');
 		if (GM_getValue("stopAdvAt") > turnsplayed && GM_getValue("stopAdvAt") > 0)
-		tdArray[3].innerHTML = GM_getValue("stopAdvAt") - turnsplayed;
-	if (GM_getValue("autoHeal"))
-		tdArray[4].setAttribute("class",(GM_getValue("autoHeal") < 3)?((GM_getValue("autoHeal") == 1)?'on':'half'):'warn');
-	if (GM_getValue("keepHPHigh"))
-		tdArray[4].innerHTML = "H";
+		tdArray[4].innerHTML = GM_getValue("stopAdvAt") - turnsplayed;
+//	if (GM_getValue("autoHeal"))
+//		tdArray[4].setAttribute("class",(GM_getValue("autoHeal") < 3)?((GM_getValue("autoHeal") == 1)?'on':'half'):'warn');
+//	if (GM_getValue("keepHPHigh"))
+//		tdArray[4].innerHTML = "H";
 	if (GM_getValue("olfact"))
 		tdArray[5].setAttribute('class','on');
 	if (GM_getValue("stopGo"))
@@ -267,9 +281,9 @@ function drawButtons() {
 	//add button functions
 	for (var i=0; i<tdArray.length; i++){
 		switch (i) {
-		   case 0:
+		   case 0:	// W
 			addEventListener(tdArray[i], 'click', function(event) {
-				if (GM_getValue("autoUse") % 4 == 1){
+				if (GM_getValue("autoUse") % 5 == 1){
 				  GM_setValue("autoUse", 0);
 				  this.setAttribute('class','off');
 				}else{
@@ -287,9 +301,9 @@ function drawButtons() {
 					GM_setValue("turnLimit", AUTO_USE_LIMIT);
 			}, true);
 		      break;
-		   case 1:
+		   case 1:	// I
 			addEventListener(tdArray[i], 'click', function(event) {
-				if (GM_getValue("autoUse") % 4 == 2){
+				if (GM_getValue("autoUse") % 5 == 2){
 				  GM_setValue("autoUse", 0);
 				  this.setAttribute('class','off');
 				}else{
@@ -300,9 +314,9 @@ function drawButtons() {
 				}
 			}, true);
 		      break;
-		   case 2:
+		   case 2:	// S
 			addEventListener(tdArray[i], 'click', function(event) {
-				if (GM_getValue("autoUse") % 4 == 3){
+				if (GM_getValue("autoUse") % 5 == 3){
 				  GM_setValue("autoUse", 0);
 				  this.setAttribute('class','off');
 				}else{
@@ -313,7 +327,20 @@ function drawButtons() {
 				}
 			}, true);
 		      break;
-		   case 3:
+		   case 3:	// M
+		   	addEventListener(tdArray[i], 'click', function(event) {
+				if (GM_getValue("autoUse") % 5 == 4){
+				  GM_setValue("autoUse", 0);
+				  this.setAttribute('class','off');
+				}else{
+				  GM_setValue("autoUse", 4);
+				  this.setAttribute('class','on');
+				  this.previousSibling.setAttribute('class','off');
+				  this.previousSibling.previousSibling.setAttribute('class','off');
+				}
+			}, true);
+		    break;
+			case 4:	// A
 			addEventListener(tdArray[i], 'contextmenu', function(event) {
 				if (event.button == 2){
 					event.stopPropagation();
@@ -349,38 +376,38 @@ function drawButtons() {
 				}
 			}, true);
 		      break;
-		   case 4:
-			addEventListener(tdArray[i], 'contextmenu', function(event) {
-				if (event.button == 2){
-					event.stopPropagation();
-					event.preventDefault();
-				}
-			}, true);
-			addEventListener(tdArray[i], 'mousedown', function(event) {
-				if (event.button == 2 && GM_getValue("autoHeal") != 2){
-				  GM_setValue("autoHeal", 2);
-				  this.setAttribute('class','half');
-				}else if (event.button == 0 && GM_getValue("autoHeal") != 1){
-				  GM_setValue("autoHeal", 1);
-				  this.setAttribute('class','on');
-				}else{
-				  GM_setValue("autoHeal", 0);
-				  this.setAttribute('class','off');
-				}
-			}, true);
-			addEventListener(tdArray[i], 'dblclick', function(event) {
-				var KeepHPhighInput = parseInt(prompt('AutoHeal at XX below max HP?'));
-				if (KeepHPhighInput > 0) {
-					GM_setValue("keepHPHigh", KeepHPhighInput);
-					this.innerHTML = "H";
-				}
-				else{
-					GM_setValue("keepHPHigh", 0);
-					this.innerHTML = "h";
-				}
-			}, true);
-			break;
-		   case 5:
+//		   case 5:	// H
+//			addEventListener(tdArray[i], 'contextmenu', function(event) {
+//				if (event.button == 2){
+//					event.stopPropagation();
+//					event.preventDefault();
+//				}
+//			}, true);
+//			addEventListener(tdArray[i], 'mousedown', function(event) {
+//				if (event.button == 2 && GM_getValue("autoHeal") != 2){
+//				  GM_setValue("autoHeal", 2);
+//				  this.setAttribute('class','half');
+//				}else if (event.button == 0 && GM_getValue("autoHeal") != 1){
+//				  GM_setValue("autoHeal", 1);
+//				  this.setAttribute('class','on');
+//				}else{
+//				  GM_setValue("autoHeal", 0);
+//				  this.setAttribute('class','off');
+//				}
+//			}, true);
+//			addEventListener(tdArray[i], 'dblclick', function(event) {
+//				var KeepHPhighInput = parseInt(prompt('AutoHeal at XX below max HP?'));
+//				if (KeepHPhighInput > 0) {
+//					GM_setValue("keepHPHigh", KeepHPhighInput);
+//					this.innerHTML = "H";
+//				}
+//				else{
+//					GM_setValue("keepHPHigh", 0);
+//					this.innerHTML = "h";
+//				}
+//			}, true);
+//			break;
+		   case 5:	// O
 			addEventListener(tdArray[i], 'mouseup', function(event) {
 				if (GM_getValue("olfact")){
 				  GM_setValue("olfact", false);
@@ -407,7 +434,7 @@ function drawButtons() {
 				event.preventDefault();
 			}, true);
 		    break;
-		   case 6:
+		   case 6:	// Q
 			addEventListener(tdArray[i], 'mouseup', function(event) {
 				if (GM_getValue("stopGo")){
 				  GM_setValue("stopGo", false);
@@ -434,6 +461,7 @@ function drawButtons() {
 				event.preventDefault();
 			}, true);
 		   break;
+
 		}
 	}
 
@@ -553,11 +581,11 @@ function grabCombatInfo(){
 function doCombat() {
 	if (GM_getValue("fightTurns") < GM_getValue("turnLimit")) {
 
-		var useThis = GM_getValue("autoUse") % 4;
+		var useThis = GM_getValue("autoUse") % 5;
 		var healThis = GM_getValue("autoHeal") % 3;
 		GM_setValue("autoUse",useThis);
 		GM_setValue("autoHeal", healThis);
-		if((healThis == 2 && useThis > 0 && useThis < 4) || healThis == 1)
+		if((healThis == 2 && useThis > 0 && useThis < 5) || healThis == 1)
 			doAutoHeal();
 		switch(useThis) {
 			case 1:
@@ -577,10 +605,11 @@ function doCombat() {
 			  addEventListener(window, 'load', function() { 
 				var whichSkillRef = getSelectByName("whichskill");  if (!whichSkillRef) return;
 				if (whichSkillRef.options[whichSkillRef.selectedIndex].value.match(/4014|3009/g)){
-					for(var i = 0; i < whichSkillRef.length; i++)
-						if(whichSkillRef.options[i].value == GM_getValue("storedSkill"))
+					for(var i = 0; i < whichSkillRef.length; i++) {
+						if(whichSkillRef.options[i].value == GM_getValue("storedSkill")) {
 							whichSkillRef.selectedIndex = i;
-					//GM_log("Using storedSkill: "+GM_getValue("storedSkill"));
+						}
+					}
 				}
 				if (whichSkillRef.selectedIndex == 0){
 					setToRed();
@@ -593,6 +622,17 @@ function doCombat() {
 				}
 				document.forms.namedItem("skill").submit();
 			  }, true);
+			break;
+			case 4:
+				addEventListener(window, 'load', function() {
+					var whichMacroRef = getSelectByName("whichmacro"); if (!whichMacroRef) return;
+					var macroChosen = whichMacroRef.selectedIndex;
+					if (macroChosen == 0) {
+						setToRed();
+						return;
+					}
+					document.forms.namedItem("macro").submit();
+				}, true);
 			break;
 			default:
 			// 	no automatic combat action selected.
@@ -619,13 +659,12 @@ function doCombat() {
 				return;
 			}
 			var costText = whichSkillRef.options[whichSkillRef.selectedIndex].text.match(/\d+/g);
-			if (costText)
-				GM_setValue("MP", GM_getValue("MP") - costText[0]);
+			if (costText) GM_setValue("MP", GM_getValue("MP") - costText[0]);
 			document.forms.namedItem("skill").submit();		
-//			this.document.skill.submit(); 
 		  }, true);
-	}else
+	} else {
 		setToRed();
+	}
 	GM_setValue("fightTurns", ++turns);
 }
 
@@ -681,9 +720,8 @@ function doAutoHeal(){
 //
 function doAutoAdv() {
 	grabCombatInfo();
-	//GM_log("MP: "+GM_getValue("MP")+".  skillCost: "+GM_getValue("skillCost"));
-	//GM_log("HP: "+GM_getValue("HP")+".  MonsterDamage: "+GM_getValue("MonsterDamage"));
-//	GM_log("stopAdvAt: "+GM_getValue("stopAdvAt")+" adventuresLeft: "+GM_getValue("adventuresLeft")+" turns played:" +GM_getValue("turnsplayed"));
+	GM_log("MP: "+GM_getValue("MP")+".  skillCost: "+GM_getValue("skillCost")+".  HP: "+GM_getValue("HP")+".  MonsterDamage: "+GM_getValue("MonsterDamage"));
+	GM_log(" adventuresLeft: "+GM_getValue("adventuresLeft")+" stopAdvAt: "+GM_getValue("stopAdvAt")+" turns played:" +GM_getValue("turnsplayed"));
 	
 	var stopAdvAt = GM_getValue("stopAdvAt");
 	var body = document.getElementsByTagName("body")[0].innerHTML;
@@ -695,35 +733,39 @@ function doAutoAdv() {
 				GM_setValue("repeatAdv", 0);  //stop-listed item acquired
 		}
 	}
-	if ( (GM_getValue("MP") < GM_getValue("skillCost") && GM_getValue("autoUse")%4 == 3)//MP less than cast amount for autoskill
+	if ( (GM_getValue("MP") < GM_getValue("skillCost") && GM_getValue("autoUse")%5 == 3)//MP less than cast amount for autoskill
 	   || ((stopAdvAt > 0) && (stopAdvAt <= GM_getValue("turnsplayed") + 1))			//Auto-adventure limit reached
 	   ||(GM_getValue("HP") < 1)										//Beaten up
 	   ||(GM_getValue("repeatAdv") == 3 && body.match(/You gain (?:a|some) Level/g))	//Level up
 	   ||(GM_getValue("MonsterDamage") * 1.1 >= GM_getValue("HP"))						//Monster could kill you in one hit
 	   ) {
-		// GM_log("stopping for some reason.");
+		GM_log("stopping for some reason.");
 		GM_setValue("repeatAdv", 0);
 		if (stopAdvAt >= GM_getValue("turnsplayed") + 1) {		// if we halted because we finished running the requested # of turns,
 			GM_setValue("stopAdvAt", 0);						// reset turncounter so that simply clicking the A will run all.
 		}
 	}
-	if (GM_getValue("repeatAdv"))
-		addEventListener(window, 'load', function() {
-			var anchors = document.getElementsByTagName("a");
-			for (var i = 0; i < anchors.length; i++)
-				if (anchors[i].getAttribute("href").indexOf("adventure.php") != -1) {
-					document.location = document.links[i];
-					break;
-				}
-		}, false);
+
 	//Reset some values since combat is over
 	GM_setValue("fightTurns", COUNTER);
 	GM_setValue("MonsterDamage", 0);
 	GM_setValue("autoHeal", GM_getValue("autoHeal") % 3);
-	GM_setValue("autoUse", GM_getValue("autoUse") % 4);
+	GM_setValue("autoUse", GM_getValue("autoUse") % 5);
 	if(GM_getValue("cancelAtEnd") == 1){
 		GM_setValue("autoUse", 0);
 		GM_setValue("cancelAtEnd", 0);
+	}
+	if (GM_getValue("repeatAdv")) {
+		addEventListener(window, 'load', function() {
+			var anchors = document.getElementsByTagName("a");
+			for (var i = 0; i < anchors.length; i++) {
+				if ((anchors[i].getAttribute('href')) && (anchors[i].getAttribute("href").indexOf("adventure.php") != -1)) {
+//					GM_log("href="+anchors[i].getAttribute('href')+"; using anchor "+i);
+					document.location = anchors[i]; // document.links[i];
+					break;
+				}
+			}
+		}, false);
 	}
 }
 
@@ -803,7 +845,7 @@ function getSelectByName(name) {
 }
 
 function setToRed() {
-	GM_setValue("autoUse", GM_getValue("autoUse") % 4 + 4);
+	GM_setValue("autoUse", GM_getValue("autoUse") % 5 + 5);
 	top.document.getElementsByName('charpane')[0].contentDocument.location.reload();
 }
 
