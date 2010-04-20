@@ -95,11 +95,11 @@ switch(document.location.pathname) {
 // It gets set (or cleared) only in the button-click processing section.
 // 
 // "olfactGo", on the other hand, is a flag to indicate whether or not we are interested in olfacting something RIGHT NOW.
-// It is set whenever we load the sidepane and "On the TraiL" is not found.
+// It is set whenever we load the sidepane and "On the Trail" is not found.
 // It is cleared whenever we actually olfact something.
 
 // first, a check to see if we had to save the old selected skill in order to olfact something last round.
-	if(GM_getValue("oldskill")) {	// if yes, then we have to switch back to the old skill now.	
+	if (GM_getValue("oldskill")) {	// if yes, then we have to switch back to the old skill now.	
 		var oldskill = GM_getValue("oldskill");
 		var sel = document.getElementsByName("whichskill");	// if combat ends in round 0 due to autoattack or familiar action after autoattack,
 															// there is no select box.  Detect this condition.
@@ -112,8 +112,8 @@ switch(document.location.pathname) {
 					break;
 				}
 			}
+			GM_setValue("oldskill", false);					// only un-set the old skill if we managed to reset the skillbox successfully.
 		}
-		GM_setValue("oldskill", false);
 		GM_setValue("olfactGo", 0);	// safety setting:  If we're putting back the old skill, disable olfaction manually for this round just in case the sidepane hasn't been updated yet.
 	}
 
@@ -721,8 +721,8 @@ function setPrefs() {
 		}
 	}
 	function finishClicked() {		// set finisher to whatever's in the autoattack dropdown.
-		var wa = document.getElementsByName("whichattack")[0];
-		GM_setValue("finisher", wa.value);
+		var whichAttack = document.getElementsByName("whichattack");
+		GM_setValue("finisher", whichAttack[0].value);
 		this.value = "Finisher - " + finisherName(GM_getValue("finisher"));
 	}
 	function pickClicked() {		// toggle always-pickpocket option.
