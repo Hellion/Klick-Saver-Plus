@@ -1,3 +1,10 @@
+Version 1.71/Hellion:
+	fix for Macro button not detecting when a macro has aborted, and resubmitting it pointlessly.
+
+Version 1.70/Hellion:
+	Updated script to work correctly with changes due to the addition of the combat macro system.
+	Add (M)acro button, remove (H)eal button.
+
   Version 1.67/Hellion:
     Newer versions of Greasemonkey insist that only ints, strings, or bools can be used in
     GM_setValue() in a way that's more strict than usual. This update fixes this so doCombat()

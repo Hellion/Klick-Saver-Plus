@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Klick-saver Plus
-// @version        1.70
+// @version        1.71
 // @namespace      http://kobe.cool.ne.jp/yehman/
 // @homepage       http://www.frogorbits.com/kol/
 // @copyright      © 2010 Nathan Sharfi, Shawn Yeh, and Nick England
@@ -22,13 +22,9 @@
 // @include        *kingdomofloathing.com/account.php
 // @exclude        forums*kingdomofloathing.com
 // @include        http://127.0.0.1:*
-// @description    This script adds buttons to your charpane which let you select Auto(W)eapon, (I)tem, (S)kill, (A)dventure, (H)eal, (O)lfact, and/or (Q)uit on. Hover your mouse over each button to see what it does when clicked or double-clicked.
+// @description    This script adds buttons to your charpane which let you select Auto(W)eapon, (I)tem, (S)kill, (M)acro, (A)dventure, (O)lfact, and/or (Q)uit on. Hover your mouse over each button to see what it does when clicked or double-clicked.
 // ==/UserScript==
-// v1.70: 	- improved end-of-combat detection 
-//			- improved HP/MP reading
-//			- a little more coverage of possible error conditions to keep execution going
-//			- "M" (Use Last Macro) button replaces the now-useless "H" (Heal stasis-style) button.
-//			- option to always click "Pick pocket" and "Pick pocket again" buttons (set on Account page, under "Autoattack" options.)
+
 
 const COUNTER = 1;  		//-1: off  0: start on zero  1: start on one
 const AUTO_USE_LIMIT = 26;	//the default round at which autoUse will be temporarily disabled
@@ -178,6 +174,7 @@ switch(document.location.pathname) {
 		if (!body.match(/WINWINW/)) {	// end of combat and no win marker?
 			GM_setValue("repeatAdv",0); // set flag to not go again.
 		}
+		GM_setValue("aborted",0);		// just in case we managed to twiddle our thumbs outside of a macro.
 		doAutoAdv();
 	}
 	break;
