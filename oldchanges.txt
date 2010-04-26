@@ -1,3 +1,9 @@
+Version 1.72/Hellion:
+	fix "runaways abort auto-adventure" problem.
+	refactor "stop on (condition)" code.
+	other readability enhancements.
+	better debug output.
+
 Version 1.71/Hellion:
 	fix for Macro button not detecting when a macro has aborted, and resubmitting it pointlessly.
 
