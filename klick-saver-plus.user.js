@@ -77,6 +77,7 @@ switch(document.location.pathname) {
 	GM_setValue("cancelAtEnd",0);	//flag for use by buttons that attack or use item until end of combat.
 	GM_setValue("autoHeal",0);		//0: off(white)  1: on(green)  2: half(dark green)  4-5: warn(red)
 	GM_setValue("MonsterDamage",0);	//Smallest Monster damage received from this fight
+	GM_setValue("aborted",0);		//combat macro aborted, manual intervention necessary
 	if (!GM_getValue("turnLimit")) GM_setValue("turnLimit", AUTO_USE_LIMIT);
 	if (!GM_getValue("finisher")) GM_setValue("finisher", 0);
 	break;
@@ -112,7 +113,7 @@ switch(document.location.pathname) {
 					break;
 				}
 			}
-			GM_setValue("oldskill", false);					// only un-set the old skill if we managed to reset the skillbox successfully.
+			GM_setValue("oldskill",false);					// only un-set the old skill if we managed to reset the skillbox successfully.
 		}
 		GM_setValue("olfactGo", 0);	// safety setting:  If we're putting back the old skill, disable olfaction manually for this round just in case the sidepane hasn't been updated yet.
 	}
@@ -155,6 +156,10 @@ switch(document.location.pathname) {
 
 	if (!body.match(/WINWINW|Adventure Again |Go back to /g)){		// still in combat? (no win marker/ no adventure again/ no go back?)
 		var turns = GM_getValue("fightTurns");
+		
+		if (body.match(/Macro Aborted|You twiddle your thumbs/)) {
+			GM_setValue("aborted",1);
+		}
 
 		//Adds Round Counter to page, set COUNTER to -1 to turn counter off
 		if (COUNTER >= 0){
@@ -460,7 +465,7 @@ function grabMPHP() {
 		GM_setValue("MaxHP", Number(HP[2]));
 	}
 	else {
-		GM_log("grabMPHP(): Error - Regex used to extract HP/MaxXP failed to match anything.");
+		GM_log("grabMPHP(): Error - Regex used to extract HP/MaxHP failed to match anything.");
 	}
 	
 	// Set MP values.
@@ -559,8 +564,19 @@ function doCombat() {
 
 		switch(useThis) {
 			case 1:
-			  addEventListener(window, 'load', function() { document.forms.namedItem("attack").submit(); }, true);
-			break;
+//			  addEventListener(window, 'load', function() { document.forms.namedItem("attack").submit(); }, true);
+			  addEventListener(window, 'load', function() {
+					var macrotext = document.getElementsByName("macrotext");
+					if (!macrotext.length) { 
+//						GM_log("no macro, buttoning."); 
+						document.forms.namedItem("attack").submit(); 
+						return; 
+					}
+					macrotext[0].value="attack;repeat;"
+//					GM_log("macroing!");
+					document.forms.namedItem("macro").submit();
+				}, true);
+			 break;
 			case 2:
 			  addEventListener(window, 'load', function() {
 				var itemChosen = getSelectByName("whichitem").selectedIndex;
@@ -601,12 +617,16 @@ function doCombat() {
 						setToRed();
 						return;
 					}
+					if (GM_getValue("aborted")) {
+						setToRed();
+						GM_setValue("aborted",0);
+						return;
+					}
 					document.forms.namedItem("macro").submit();
 				}, true);
 			break;
 			default:
 			// 	no automatic combat action selected.
-			//	GM_log("whuh?");
 			break;
 		}
 	}else if (GM_getValue("finisher") != 0){
@@ -654,19 +674,19 @@ function doAutoAdv() {
 				GM_setValue("repeatAdv", 0);  //stop-listed item acquired
 		}
 	}
-	if ( (GM_getValue("MP") < GM_getValue("skillCost") && GM_getValue("autoUse")%5 == 3)//MP less than cast amount for autoskill
-	   || ((stopAdvAt > 0) && (stopAdvAt <= GM_getValue("turnsplayed") + 1))			//Auto-adventure limit reached
-	   ||(GM_getValue("HP") < 1)										//Beaten up
-	   ||(GM_getValue("repeatAdv") == 3 && body.match(/You gain (?:a|some) Level/g))	//Level up
-	   ||(GM_getValue("MonsterDamage") * 1.1 >= GM_getValue("HP"))						//Monster could kill you in one hit
-	   ) {
-		GM_log("stopping for some reason.");
-		GM_setValue("repeatAdv", 0);
-		if (stopAdvAt >= GM_getValue("turnsplayed") + 1) {		// if we halted because we finished running the requested # of turns,
-			GM_setValue("stopAdvAt", 0);						// reset turncounter so that simply clicking the A will run all.
-		}
+	function stopAdventuring(msg) {
+		GM_setValue("repeatAdv",0);
+		GM_log("stopping: " + msg);
 	}
-
+	if (GM_getValue("MP") < GM_getValue("skillCost") && GM_getValue("autoUse")%5 == 3) stopAdventuring("MP too low for auto-skillcasting.");
+	else if ((stopAdvAt > 0) && (stopAdvAt <= GM_getValue("turnsplayed") + 1)) { 
+		stopAdventuring("turns complete.");
+		GM_setValue("stopAdvAt",0);
+	}
+	else if (GM_getValue("HP") < 1) stopAdventuring("got beat up!");
+	else if (GM_getValue("repeatAdv") == 3 && body.match(/You gain (?:a|some) Level/g)) stopAdventuring("Leveled up!");
+	else if (GM_getValue("MonsterDamage") * 1.1 >= GM_getValue("HP")) stopAdventuring("too risky to continue.");
+	
 	//Reset some values since combat is over
 	GM_setValue("fightTurns", COUNTER);
 	GM_setValue("MonsterDamage", 0);
@@ -768,9 +788,14 @@ function unregisterEventListeners(event)
 }
 
 function AttackScript() {
-	GM_setValue("autoUse",1);
-	GM_setValue("cancelAtEnd",1);
-	document.forms.namedItem("attack").submit();
+	var macrotext = document.getElementsByName("macrotext");
+	if (!macrotext.length) { GM_log("no macro, buttoning."); document.forms.namedItem("attack").submit(); return; }
+	macrotext[0].value="attack;repeat;"
+//	GM_log("macroing via [Attack!]!");
+	document.forms.namedItem("macro").submit();
+//	GM_setValue("autoUse",1);
+//	GM_setValue("cancelAtEnd",1);
+//	document.forms.namedItem("attack").submit();
 }
 
 function ItemScript() {
