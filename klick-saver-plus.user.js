@@ -572,48 +572,50 @@ function doCombat() {
 		switch(useThis) {
 			case ATTACK:
 //			  addEventListener(window, 'load', function() { document.forms.namedItem("attack").submit(); }, true);
-			  addEventListener(window, 'load', function() {
-					var macrotext = document.getElementsByName("macrotext");
-					if (!macrotext.length) { 
-//						GM_log("no macro, buttoning."); 
-						document.forms.namedItem("attack").submit(); 
-						return; 
-					}
-					macrotext[0].value="attack;repeat;"
-//					GM_log("macroing!");
-					document.forms.namedItem("macro").submit();
-				}, true);
+			  addEventListener(window, 'load', function() { AttackScript(); }, true);
+//					var macrotext = document.getElementsByName("macrotext");
+//					if (!macrotext.length) { 
+////						GM_log("no macro, buttoning."); 
+//						document.forms.namedItem("attack").submit(); 
+//						return; 
+//					}
+//					macrotext[0].value="attack;repeat;"
+////					GM_log("macroing!");
+//					document.forms.namedItem("macro").submit();
+//				}, true);
 			 break;
 			case USE_ITEM:
 			  addEventListener(window, 'load', function() {
-				var itemChosen = getSelectByName("whichitem").selectedIndex;
-				if (itemChosen == 0){
-					setToRed();
-					return;
-				}
-				document.forms.namedItem("useitem").submit(); 
+				ItemScript();
+//				var itemChosen = getSelectByName("whichitem").selectedIndex;
+//				if (itemChosen == 0){
+//					setToRed();
+//					return;
+//				}
+//				document.forms.namedItem("useitem").submit(); 
 			  }, true);
 			break;
 			case USE_SKILL:
 			  addEventListener(window, 'load', function() { 
-				var whichSkillRef = getSelectByName("whichskill");  if (!whichSkillRef) return;
-				if (whichSkillRef.options[whichSkillRef.selectedIndex].value.match(/4014|3009/g)){
-					for(var i = 0; i < whichSkillRef.length; i++) {
-						if(whichSkillRef.options[i].value == GM_getValue("storedSkill")) {
-							whichSkillRef.selectedIndex = i;
-						}
-					}
-				}
-				if (whichSkillRef.selectedIndex == 0){
-					setToRed();
-					return;
-				}
-				var costText = whichSkillRef.options[whichSkillRef.selectedIndex].text.match(/\d+/g);
-				if (costText){
-					GM_setValue("skillCost", Number(costText[0]));
-					GM_setValue("MP", GM_getValue("MP") - costText[0]);
-				}
-				document.forms.namedItem("skill").submit();
+				SkillScript(); return;
+//				var whichSkillRef = getSelectByName("whichskill");  if (!whichSkillRef) return;
+//				if (whichSkillRef.options[whichSkillRef.selectedIndex].value.match(/4014|3009/g)){
+//					for(var i = 0; i < whichSkillRef.length; i++) {
+//						if(whichSkillRef.options[i].value == GM_getValue("storedSkill")) {
+//							whichSkillRef.selectedIndex = i;
+//						}
+//					}
+//				}
+//				if (whichSkillRef.selectedIndex == 0){
+//					setToRed();
+//					return;
+//				}
+//				var costText = whichSkillRef.options[whichSkillRef.selectedIndex].text.match(/\d+/g);
+//				if (costText){
+//					GM_setValue("skillCost", Number(costText[0]));
+//					GM_setValue("MP", GM_getValue("MP") - costText[0]);
+//				}
+//				document.forms.namedItem("skill").submit();
 			  }, true);
 			break;
 			case USE_MACRO:
@@ -798,19 +800,69 @@ function unregisterEventListeners(event)
 
 function AttackScript() {
 	var macrotext = document.getElementsByName("macrotext");
-	if (!macrotext.length) { GM_log("no macro, buttoning."); document.forms.namedItem("attack").submit(); return; }
+	if (!macrotext.length) { 
+//		GM_log("no macro, buttoning attack."); 
+		GM_setValue("autoUse",ATTACK);
+		GM_setValue("cancelAtEnd",1);
+		document.forms.namedItem("attack").submit(); 
+		return; 
+	}
 	macrotext[0].value="attack;repeat;"
 //	GM_log("macroing via [Attack!]!");
 	document.forms.namedItem("macro").submit();
-//	GM_setValue("autoUse",ATTACK);
-//	GM_setValue("cancelAtEnd",1);
-//	document.forms.namedItem("attack").submit();
 }
 
 function ItemScript() {
-	GM_setValue("autoUse",USE_ITEM);
-	GM_setValue("cancelAtEnd",1);
-	document.forms.namedItem("useitem").submit();
+	var itemSelect = document.getElementsByName("whichitem");
+	if (itemSelect[0].selectedIndex == 0) {
+		GM_log("no item selected; abort.");
+		setToRed();
+	} else {
+		var macrotext = document.getElementsByName("macrotext");
+		if (!macrotext.length) {
+			GM_log("no macro; buttoning items.");
+			GM_setValue("autoUse",USE_ITEM);
+			GM_setValue("cancelAtEnd",1);
+			document.forms.namedItem("useitem").submit();
+		} else {
+			var funksling = document.getElementsByName("whichitem2");
+			var itemname = itemSelect[0].options[itemSelect[0].selectedIndex].text.match(/(.*) \(/)[1]; 
+							// listbox says things like "spices (11)": regex grabs everything before " ("
+			var itemname2 = '';
+			if (funksling.length) {
+				var itemmatch = funksling[0].options[funksling[0].selectedIndex].text.match(/(.*) \(/);
+				if (itemmatch) itemname2 = itemmatch[1];
+			}
+			if (itemname2 == '') macrotext[0].value="use " +itemname+"; repeat;";
+			else macrotext[0].value="use "+itemname+","+itemname2+"; repeat;";
+			GM_log("macro="+macrotext[0].value);
+			document.forms.namedItem("macro").submit();		
+		}
+	}
+}
+
+function SkillScript() {
+	var skillList=document.getElementsByName("whichskill");
+	if (skillList[0].selectedIndex == 0) {
+		GM_log("No skill selected; abort.");
+		setToRed();
+	} else {
+		var costText = skillList[0].options[skillList[0].selectedIndex].text.match(/\d+/g);	// please never have a skill with a number in its name.
+		if (costText){
+			GM_setValue("skillCost", Number(costText[0]));
+			GM_setValue("MP", GM_getValue("MP") - costText[0]);	// this will be inaccurate if we macro it, but hopefully that won't matter
+																// because we'll get correct values when the macro finishes.
+		}
+		var macrotext = document.getElementsByName("macrotext");
+		if (!macrotext.length) {
+			GM_log("no macro box; buttoning skill.");
+			document.forms.namedItem("skill").submit();
+		} else {
+			var skillName=skillList[0].options[skillList[0].selectedIndex].text.match(/(.*) \(/)[1];
+			macrotext[0].value="skill "+skillName+"; repeat;";
+			document.forms.namedItem("macro").submit();
+		}
+	}
 }
 
 function getSelectByName(name) {
