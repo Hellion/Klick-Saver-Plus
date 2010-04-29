@@ -572,7 +572,7 @@ function doCombat() {
 		switch(useThis) {
 			case ATTACK:
 //			  addEventListener(window, 'load', function() { document.forms.namedItem("attack").submit(); }, true);
-			  addEventListener(window, 'load', function() { AttackScript(); }, true);
+			  addEventListener(window, 'load', function() { GM_log("calling AttackScript(false)..."); AttackScript(false); }, true);
 //					var macrotext = document.getElementsByName("macrotext");
 //					if (!macrotext.length) { 
 ////						GM_log("no macro, buttoning."); 
@@ -585,19 +585,19 @@ function doCombat() {
 //				}, true);
 			 break;
 			case USE_ITEM:
-			  addEventListener(window, 'load', function() {
-				ItemScript();
+			 addEventListener(window, 'load', function() {
+				ItemScript(false);
 //				var itemChosen = getSelectByName("whichitem").selectedIndex;
 //				if (itemChosen == 0){
 //					setToRed();
 //					return;
 //				}
 //				document.forms.namedItem("useitem").submit(); 
-			  }, true);
+			}, true);
 			break;
 			case USE_SKILL:
 			  addEventListener(window, 'load', function() { 
-				SkillScript(); return;
+				SkillScript(false); return;
 //				var whichSkillRef = getSelectByName("whichskill");  if (!whichSkillRef) return;
 //				if (whichSkillRef.options[whichSkillRef.selectedIndex].value.match(/4014|3009/g)){
 //					for(var i = 0; i < whichSkillRef.length; i++) {
@@ -798,12 +798,16 @@ function unregisterEventListeners(event)
     window.removeEventListener('unload', unregisterEventListeners, false);
 }
 
-function AttackScript() {
+// n.b. When called from DoCombat(), these functions are explicitly passed a parameter of "false".
+//		When called via clicking on the Combat-screen buttons, they are implicitly passed a parameter of the mouse-click event object.
+function AttackScript(setCancel) {
+	GM_log("in AttackScript.")
 	var macrotext = document.getElementsByName("macrotext");
 	if (!macrotext.length) { 
 //		GM_log("no macro, buttoning attack."); 
+//		GM_log("setCancel="+setCancel);
 		GM_setValue("autoUse",ATTACK);
-		GM_setValue("cancelAtEnd",1);
+		if (setCancel) GM_setValue("cancelAtEnd",1);
 		document.forms.namedItem("attack").submit(); 
 		return; 
 	}
@@ -812,17 +816,17 @@ function AttackScript() {
 	document.forms.namedItem("macro").submit();
 }
 
-function ItemScript() {
+function ItemScript(setCancel) {
 	var itemSelect = document.getElementsByName("whichitem");
 	if (itemSelect[0].selectedIndex == 0) {
-		GM_log("no item selected; abort.");
+//		GM_log("no item selected; abort.");
 		setToRed();
 	} else {
 		var macrotext = document.getElementsByName("macrotext");
 		if (!macrotext.length) {
-			GM_log("no macro; buttoning items.");
+//			GM_log("no macro; buttoning items.");
 			GM_setValue("autoUse",USE_ITEM);
-			GM_setValue("cancelAtEnd",1);
+			if (setCancel) GM_setValue("cancelAtEnd",1);
 			document.forms.namedItem("useitem").submit();
 		} else {
 			var funksling = document.getElementsByName("whichitem2");
@@ -841,10 +845,10 @@ function ItemScript() {
 	}
 }
 
-function SkillScript() {
+function SkillScript(setCancel) {
 	var skillList=document.getElementsByName("whichskill");
 	if (skillList[0].selectedIndex == 0) {
-		GM_log("No skill selected; abort.");
+//		GM_log("No skill selected; abort.");
 		setToRed();
 	} else {
 		var costText = skillList[0].options[skillList[0].selectedIndex].text.match(/\d+/g);	// please never have a skill with a number in its name.
@@ -855,7 +859,9 @@ function SkillScript() {
 		}
 		var macrotext = document.getElementsByName("macrotext");
 		if (!macrotext.length) {
-			GM_log("no macro box; buttoning skill.");
+//			GM_log("no macro box; buttoning skill.");
+//			GM_setValue("autoUse",USE_SKILL);			// these 2 lines would matter if there were a "skill!" button on the combat screen.
+//			if (setCancel) GM_setValue("cancelAtEnd",1);
 			document.forms.namedItem("skill").submit();
 		} else {
 			var skillName=skillList[0].options[skillList[0].selectedIndex].text.match(/(.*) \(/)[1];
