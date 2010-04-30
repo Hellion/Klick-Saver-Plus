@@ -298,8 +298,9 @@ function drawButtons() {
 				}else{
 				  GM_setValue("autoUse", ATTACK);
 				  this.setAttribute('class','on');
-				  this.nextSibling.setAttribute('class','off');
-				  this.nextSibling.nextSibling.setAttribute('class','off');
+				  this.nextSibling.setAttribute('class','off');	// I off
+				  this.nextSibling.nextSibling.setAttribute('class','off');	// S off
+				  this.nextSibling.nextSibling.nextSibling.setAttribute('class','off'); // M off
 				}
 			}, true);
 			addEventListener(tdArray[i], 'dblclick', function(event) {
@@ -318,8 +319,9 @@ function drawButtons() {
 				}else{
 				  GM_setValue("autoUse", USE_ITEM);
 				  this.setAttribute('class','on');
-				  this.nextSibling.setAttribute('class','off');
-				  this.previousSibling.setAttribute('class','off');
+				  this.nextSibling.setAttribute('class','off');	// S off
+				  this.nextSibling.nextSibling.setAttribute('class','off'); // M off
+				  this.previousSibling.setAttribute('class','off'); // A off
 				}
 			}, true);
 		      break;
@@ -331,8 +333,9 @@ function drawButtons() {
 				}else{
 				  GM_setValue("autoUse", USE_SKILL);
 				  this.setAttribute('class','on');
-				  this.previousSibling.setAttribute('class','off');
-				  this.previousSibling.previousSibling.setAttribute('class','off');
+				  this.previousSibling.setAttribute('class','off'); // I off
+				  this.previousSibling.previousSibling.setAttribute('class','off'); // A off
+				  this.nextSibling.setAttribute('class','off'); // M off
 				}
 			}, true);
 		      break;
@@ -344,8 +347,9 @@ function drawButtons() {
 				}else{
 				  GM_setValue("autoUse", USE_MACRO);
 				  this.setAttribute('class','on');
-				  this.previousSibling.setAttribute('class','off');
-				  this.previousSibling.previousSibling.setAttribute('class','off');
+				  this.previousSibling.setAttribute('class','off');	// S off
+				  this.previousSibling.previousSibling.setAttribute('class','off'); // I off
+				  this.previousSibling.previousSibling.previousSibling.setAttribute('class','off'); // A off
 				}
 			}, true);
 		    break;
