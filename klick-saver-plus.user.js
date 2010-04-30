@@ -207,7 +207,7 @@ function drawButtons() {
 	if (pageHeadText.indexOf('played =') != -1) {
 		turnsplayed = parseInt(pageHeadText.split('played =')[1].split(';')[0]);	// read it directly from the charpane if possible.
 	} else {
-		turnsplayed = parseInt(GM_getValue("turnsplayed"))-1;						// otherwise we just assume we spent a turn.
+		turnsplayed = parseInt(GM_getValue("turnsplayed"))+1;						// otherwise we just assume we spent a turn.
 	}
 	GM_setValue("turnsplayed", turnsplayed);
 	//render the button layout
