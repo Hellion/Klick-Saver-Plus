@@ -207,7 +207,7 @@ function drawButtons() {
 	if (pageHeadText.indexOf('played =') != -1) {
 		turnsplayed = parseInt(pageHeadText.split('played =')[1].split(';')[0]);	// read it directly from the charpane if possible.
 	} else {
-		turnsplayed = parseInt(GM_getValue("turnsplayed"))-1;						// otherwise we just assume we spent a turn.
+		turnsplayed = parseInt(GM_getValue("turnsplayed"))+1;						// otherwise we just assume we spent a turn.
 	}
 	GM_setValue("turnsplayed", turnsplayed);
 	//render the button layout
@@ -811,7 +811,7 @@ function AttackScript(setCancel) {
 		document.forms.namedItem("attack").submit(); 
 		return; 
 	}
-	macrotext[0].value="attack;repeat;"
+	macrotext[0].value="attack;repeat;scrollwhendone;"
 //	GM_log("macroing via [Attack!]!");
 	document.forms.namedItem("macro").submit();
 }
@@ -829,16 +829,15 @@ function ItemScript(setCancel) {
 			if (setCancel) GM_setValue("cancelAtEnd",1);
 			document.forms.namedItem("useitem").submit();
 		} else {
+			var itemnumber = itemSelect[0].options[itemSelect[0].selectedIndex].value;
+			var itemnumber2 = 0;
 			var funksling = document.getElementsByName("whichitem2");
-			var itemname = itemSelect[0].options[itemSelect[0].selectedIndex].text.match(/(.*) \(/)[1]; 
-							// listbox says things like "spices (11)": regex grabs everything before " ("
-			var itemname2 = '';
 			if (funksling.length) {
-				var itemmatch = funksling[0].options[funksling[0].selectedIndex].text.match(/(.*) \(/);
-				if (itemmatch) itemname2 = itemmatch[1];
+				itemnumber2 = funksling[0].options[funksling[0].selectedIndex].value;
 			}
-			if (itemname2 == '') macrotext[0].value="use " +itemname+"; repeat;";
-			else macrotext[0].value="use "+itemname+","+itemname2+"; repeat;";
+//			GM_log("item 1:" + itemnumber); GM_log("item 2:" + itemnumber2);
+			if (itemnumber2 == 0) macrotext[0].value = "use "+itemnumber + "; repeat;scrollwhendone;";
+			else macrotext[0].value = "use "+itemnumber + "," +itemnumber2 + "; repeat;scrollwhendone;";
 			GM_log("macro="+macrotext[0].value);
 			document.forms.namedItem("macro").submit();		
 		}
@@ -864,8 +863,8 @@ function SkillScript(setCancel) {
 //			if (setCancel) GM_setValue("cancelAtEnd",1);
 			document.forms.namedItem("skill").submit();
 		} else {
-			var skillName=skillList[0].options[skillList[0].selectedIndex].text.match(/(.*) \(/)[1];
-			macrotext[0].value="skill "+skillName+"; repeat;";
+			var skillNumber=skillList[0].options[skillList[0].selectedIndex].value;
+			macrotext[0].value="skill "+skillNumber+"; repeat;";
 			document.forms.namedItem("macro").submit();
 		}
 	}
