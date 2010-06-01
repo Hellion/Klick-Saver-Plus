@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Klick-saver Plus
-// @version        1.72
+// @version        1.73
 // @namespace      http://kobe.cool.ne.jp/yehman/
 // @homepage       http://www.frogorbits.com/kol/
 // @copyright      © 2010 Nathan Sharfi, Shawn Yeh, and Nick England
@@ -572,7 +572,10 @@ function doCombat() {
 		switch(useThis) {
 			case ATTACK:
 //			  addEventListener(window, 'load', function() { document.forms.namedItem("attack").submit(); }, true);
-			  addEventListener(window, 'load', function() { GM_log("calling AttackScript(false)..."); AttackScript(false); }, true);
+				addEventListener(window, 'load', function() { 
+//					GM_log("calling AttackScript(false)..."); 
+					AttackScript(false); 
+				}, true);
 //					var macrotext = document.getElementsByName("macrotext");
 //					if (!macrotext.length) { 
 ////						GM_log("no macro, buttoning."); 
@@ -676,8 +679,8 @@ function stopAdventuring(msg) {
 //
 function doAutoAdv() {
 	grabCombatInfo();
-	GM_log("MP: "+GM_getValue("MP")+".  skillCost: "+GM_getValue("skillCost")+".  HP: "+GM_getValue("HP")+".  MonsterDamage: "+GM_getValue("MonsterDamage"));
-	GM_log(" adventuresLeft: "+GM_getValue("adventuresLeft")+" stopAdvAt: "+GM_getValue("stopAdvAt")+" turns played:" +GM_getValue("turnsplayed"));
+//	GM_log("MP: "+GM_getValue("MP")+".  skillCost: "+GM_getValue("skillCost")+".  HP: "+GM_getValue("HP")+".  MonsterDamage: "+GM_getValue("MonsterDamage"));
+//	GM_log(" adventuresLeft: "+GM_getValue("adventuresLeft")+" stopAdvAt: "+GM_getValue("stopAdvAt")+" turns played:" +GM_getValue("turnsplayed"));
 	
 	var stopAdvAt = GM_getValue("stopAdvAt");
 	var body = document.getElementsByTagName("body")[0].innerHTML;
@@ -801,7 +804,7 @@ function unregisterEventListeners(event)
 // n.b. When called from DoCombat(), these functions are explicitly passed a parameter of "false".
 //		When called via clicking on the Combat-screen buttons, they are implicitly passed a parameter of the mouse-click event object.
 function AttackScript(setCancel) {
-	GM_log("in AttackScript.")
+//	GM_log("in AttackScript.")
 	var macrotext = document.getElementsByName("macrotext");
 	if (!macrotext.length) { 
 //		GM_log("no macro, buttoning attack."); 
@@ -838,7 +841,7 @@ function ItemScript(setCancel) {
 //			GM_log("item 1:" + itemnumber); GM_log("item 2:" + itemnumber2);
 			if (itemnumber2 == 0) macrotext[0].value = "use "+itemnumber + "; repeat;scrollwhendone;";
 			else macrotext[0].value = "use "+itemnumber + "," +itemnumber2 + "; repeat;scrollwhendone;";
-			GM_log("macro="+macrotext[0].value);
+//			GM_log("macro="+macrotext[0].value);
 			document.forms.namedItem("macro").submit();		
 		}
 	}
