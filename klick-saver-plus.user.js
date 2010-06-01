@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Klick-saver Plus
-// @version        1.72
+// @version        1.73
 // @namespace      http://kobe.cool.ne.jp/yehman/
 // @homepage       http://www.frogorbits.com/kol/
 // @copyright      © 2010 Nathan Sharfi, Shawn Yeh, and Nick England
@@ -576,48 +576,53 @@ function doCombat() {
 		switch(useThis) {
 			case ATTACK:
 //			  addEventListener(window, 'load', function() { document.forms.namedItem("attack").submit(); }, true);
-			  addEventListener(window, 'load', function() {
-					var macrotext = document.getElementsByName("macrotext");
-					if (!macrotext.length) { 
-//						GM_log("no macro, buttoning."); 
-						document.forms.namedItem("attack").submit(); 
-						return; 
-					}
-					macrotext[0].value="attack;repeat;"
-//					GM_log("macroing!");
-					document.forms.namedItem("macro").submit();
+				addEventListener(window, 'load', function() { 
+//					GM_log("calling AttackScript(false)..."); 
+					AttackScript(false); 
 				}, true);
+//					var macrotext = document.getElementsByName("macrotext");
+//					if (!macrotext.length) { 
+////						GM_log("no macro, buttoning."); 
+//						document.forms.namedItem("attack").submit(); 
+//						return; 
+//					}
+//					macrotext[0].value="attack;repeat;"
+////					GM_log("macroing!");
+//					document.forms.namedItem("macro").submit();
+//				}, true);
 			 break;
 			case USE_ITEM:
-			  addEventListener(window, 'load', function() {
-				var itemChosen = getSelectByName("whichitem").selectedIndex;
-				if (itemChosen == 0){
-					setToRed();
-					return;
-				}
-				document.forms.namedItem("useitem").submit(); 
-			  }, true);
+			 addEventListener(window, 'load', function() {
+				ItemScript(false);
+//				var itemChosen = getSelectByName("whichitem").selectedIndex;
+//				if (itemChosen == 0){
+//					setToRed();
+//					return;
+//				}
+//				document.forms.namedItem("useitem").submit(); 
+			}, true);
 			break;
 			case USE_SKILL:
 			  addEventListener(window, 'load', function() { 
-				var whichSkillRef = getSelectByName("whichskill");  if (!whichSkillRef) return;
-				if (whichSkillRef.options[whichSkillRef.selectedIndex].value.match(/4014|3009/g)){
-					for(var i = 0; i < whichSkillRef.length; i++) {
-						if(whichSkillRef.options[i].value == GM_getValue("storedSkill")) {
-							whichSkillRef.selectedIndex = i;
-						}
-					}
-				}
-				if (whichSkillRef.selectedIndex == 0){
-					setToRed();
-					return;
-				}
-				var costText = whichSkillRef.options[whichSkillRef.selectedIndex].text.match(/\d+/g);
-				if (costText){
-					GM_setValue("skillCost", Number(costText[0]));
-					GM_setValue("MP", GM_getValue("MP") - costText[0]);
-				}
-				document.forms.namedItem("skill").submit();
+				SkillScript(false); return;
+//				var whichSkillRef = getSelectByName("whichskill");  if (!whichSkillRef) return;
+//				if (whichSkillRef.options[whichSkillRef.selectedIndex].value.match(/4014|3009/g)){
+//					for(var i = 0; i < whichSkillRef.length; i++) {
+//						if(whichSkillRef.options[i].value == GM_getValue("storedSkill")) {
+//							whichSkillRef.selectedIndex = i;
+//						}
+//					}
+//				}
+//				if (whichSkillRef.selectedIndex == 0){
+//					setToRed();
+//					return;
+//				}
+//				var costText = whichSkillRef.options[whichSkillRef.selectedIndex].text.match(/\d+/g);
+//				if (costText){
+//					GM_setValue("skillCost", Number(costText[0]));
+//					GM_setValue("MP", GM_getValue("MP") - costText[0]);
+//				}
+//				document.forms.namedItem("skill").submit();
 			  }, true);
 			break;
 			case USE_MACRO:
@@ -678,8 +683,8 @@ function stopAdventuring(msg) {
 //
 function doAutoAdv() {
 	grabCombatInfo();
-	GM_log("MP: "+GM_getValue("MP")+".  skillCost: "+GM_getValue("skillCost")+".  HP: "+GM_getValue("HP")+".  MonsterDamage: "+GM_getValue("MonsterDamage"));
-	GM_log(" adventuresLeft: "+GM_getValue("adventuresLeft")+" stopAdvAt: "+GM_getValue("stopAdvAt")+" turns played:" +GM_getValue("turnsplayed"));
+//	GM_log("MP: "+GM_getValue("MP")+".  skillCost: "+GM_getValue("skillCost")+".  HP: "+GM_getValue("HP")+".  MonsterDamage: "+GM_getValue("MonsterDamage"));
+//	GM_log(" adventuresLeft: "+GM_getValue("adventuresLeft")+" stopAdvAt: "+GM_getValue("stopAdvAt")+" turns played:" +GM_getValue("turnsplayed"));
 	
 	var stopAdvAt = GM_getValue("stopAdvAt");
 	var body = document.getElementsByTagName("body")[0].innerHTML;
@@ -800,21 +805,76 @@ function unregisterEventListeners(event)
     window.removeEventListener('unload', unregisterEventListeners, false);
 }
 
-function AttackScript() {
+// n.b. When called from DoCombat(), these functions are explicitly passed a parameter of "false".
+//		When called via clicking on the Combat-screen buttons, they are implicitly passed a parameter of the mouse-click event object.
+function AttackScript(setCancel) {
+//	GM_log("in AttackScript.")
 	var macrotext = document.getElementsByName("macrotext");
-	if (!macrotext.length) { GM_log("no macro, buttoning."); document.forms.namedItem("attack").submit(); return; }
-	macrotext[0].value="attack;repeat;"
+	if (!macrotext.length) { 
+//		GM_log("no macro, buttoning attack."); 
+//		GM_log("setCancel="+setCancel);
+		GM_setValue("autoUse",ATTACK);
+		if (setCancel) GM_setValue("cancelAtEnd",1);
+		document.forms.namedItem("attack").submit(); 
+		return; 
+	}
+	macrotext[0].value="attack;repeat;scrollwhendone;"
 //	GM_log("macroing via [Attack!]!");
 	document.forms.namedItem("macro").submit();
-//	GM_setValue("autoUse",ATTACK);
-//	GM_setValue("cancelAtEnd",1);
-//	document.forms.namedItem("attack").submit();
 }
 
-function ItemScript() {
-	GM_setValue("autoUse",USE_ITEM);
-	GM_setValue("cancelAtEnd",1);
-	document.forms.namedItem("useitem").submit();
+function ItemScript(setCancel) {
+	var itemSelect = document.getElementsByName("whichitem");
+	if (itemSelect[0].selectedIndex == 0) {
+//		GM_log("no item selected; abort.");
+		setToRed();
+	} else {
+		var macrotext = document.getElementsByName("macrotext");
+		if (!macrotext.length) {
+//			GM_log("no macro; buttoning items.");
+			GM_setValue("autoUse",USE_ITEM);
+			if (setCancel) GM_setValue("cancelAtEnd",1);
+			document.forms.namedItem("useitem").submit();
+		} else {
+			var itemnumber = itemSelect[0].options[itemSelect[0].selectedIndex].value;
+			var itemnumber2 = 0;
+			var funksling = document.getElementsByName("whichitem2");
+			if (funksling.length) {
+				itemnumber2 = funksling[0].options[funksling[0].selectedIndex].value;
+			}
+//			GM_log("item 1:" + itemnumber); GM_log("item 2:" + itemnumber2);
+			if (itemnumber2 == 0) macrotext[0].value = "use "+itemnumber + "; repeat;scrollwhendone;";
+			else macrotext[0].value = "use "+itemnumber + "," +itemnumber2 + "; repeat;scrollwhendone;";
+//			GM_log("macro="+macrotext[0].value);
+			document.forms.namedItem("macro").submit();		
+		}
+	}
+}
+
+function SkillScript(setCancel) {
+	var skillList=document.getElementsByName("whichskill");
+	if (skillList[0].selectedIndex == 0) {
+//		GM_log("No skill selected; abort.");
+		setToRed();
+	} else {
+		var costText = skillList[0].options[skillList[0].selectedIndex].text.match(/\d+/g);	// please never have a skill with a number in its name.
+		if (costText){
+			GM_setValue("skillCost", Number(costText[0]));
+			GM_setValue("MP", GM_getValue("MP") - costText[0]);	// this will be inaccurate if we macro it, but hopefully that won't matter
+																// because we'll get correct values when the macro finishes.
+		}
+		var macrotext = document.getElementsByName("macrotext");
+		if (!macrotext.length) {
+//			GM_log("no macro box; buttoning skill.");
+//			GM_setValue("autoUse",USE_SKILL);			// these 2 lines would matter if there were a "skill!" button on the combat screen.
+//			if (setCancel) GM_setValue("cancelAtEnd",1);
+			document.forms.namedItem("skill").submit();
+		} else {
+			var skillNumber=skillList[0].options[skillList[0].selectedIndex].value;
+			macrotext[0].value="skill "+skillNumber+"; repeat;";
+			document.forms.namedItem("macro").submit();
+		}
+	}
 }
 
 function getSelectByName(name) {
