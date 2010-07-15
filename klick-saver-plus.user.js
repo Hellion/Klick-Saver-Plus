@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Klick-saver Plus
-// @version        1.73
+// @version        1.74
 // @namespace      http://kobe.cool.ne.jp/yehman/
 // @homepage       http://www.frogorbits.com/kol/
 // @copyright      © 2010 Nathan Sharfi, Shawn Yeh, and Nick England
