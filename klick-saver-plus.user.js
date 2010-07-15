@@ -66,10 +66,10 @@ switch(document.location.pathname) {
   case "/game.php":
   case "/main.html":
 	GM_log("Initialize Values.");
-	GM_setValue("autoUse", 0);		//0: off  1: weapon  2: item  3: skill  4: macro
-	GM_setValue("repeatAdv", 0);		//0: off  1: normal  3: stop on specific item drops
+	GM_setValue("autoUse", 0);				// 0: off  1: weapon  2: item  3: skill  4: macro
+	GM_setValue("repeatAdv", 0);			// 0: off  1: normal  3: stop on specific item drops
 	GM_setValue("fightTurns", COUNTER);
-	GM_setValue("stopAdvAt", 0);		// stop adventuring when our turncount reaches this number.
+	GM_setValue("stopAdvAt", 0);			// stop adventuring when our turncount reaches this number.
 	GM_setValue("adventuresLeft", 0);
 	GM_setValue("storedSkill", 'none');
 	GM_setValue("MP",0);
@@ -77,16 +77,19 @@ switch(document.location.pathname) {
 	GM_setValue("MaxHP",0);
 	GM_setValue("MaxMP",0);
 	GM_setValue("skillCost",1);
-	GM_setValue("cancelAtEnd",0);	//flag for use by buttons that attack or use item until end of combat.
-	GM_setValue("autoHeal",0);		//0: off(white)  1: on(green)  2: half(dark green)  4-5: warn(red)
-	GM_setValue("MonsterDamage",0);	//Smallest Monster damage received from this fight
-	GM_setValue("aborted",false);		//combat macro aborted, manual intervention necessary
+	GM_setValue("cancelAtEnd",0);			// flag for use by buttons that attack or use item until end of combat.
+	GM_setValue("autoHeal",0);				// 0: off(white)  1: on(green)  2: half(dark green)  4-5: warn(red)
+	GM_setValue("MonsterDamage",0);			// Smallest Monster damage received from this fight
+	GM_setValue("aborted",false);			// combat macro aborted, manual intervention necessary
+	GM_setValue("alreadyMacroed",false);	// auto-used a macro once this combat already
+	
 	if (!GM_getValue("turnLimit")) GM_setValue("turnLimit", AUTO_USE_LIMIT);
 	if (!GM_getValue("finisher")) GM_setValue("finisher", 0);
 	break;
 
   case "/charpane.php":
 	drawButtons();
+	grabMPHP();
 	break;
 
   case "/fight.php":
@@ -107,8 +110,8 @@ switch(document.location.pathname) {
 		var oldskill = GM_getValue("oldskill");
 		var sel = document.getElementsByName("whichskill");	// if combat ends in round 0 due to autoattack or familiar action after autoattack,
 															// there is no select box.  Detect this condition.
-		if (sel) {
-			sel = document.getElementsByName("whichskill")[0];
+		if (sel.length) {
+			sel = sel[0];
 			var opts = sel.childNodes; var len = opts.length;
 			for(var i=0; i<len; i++) {
 				if(opts[i].value == oldskill) {
@@ -125,10 +128,13 @@ switch(document.location.pathname) {
 //	GM_log("olfactGo="+GM_getValue("olfactGo"));
 	if(GM_getValue("olfact") && GM_getValue("olfactGo")) {	// If the Olfaction button is on, and "On the trail" is not a current effect:
 		var monname = document.getElementById("monname");
+//		GM_log("monname="+monname.innerHTML);
 		if(monname && monname.innerHTML.toLowerCase().indexOf(GM_getValue("olfactString").toLowerCase()) != -1) {  // this is what we're after?
 			GM_setValue("olfactGo", false);
 			addEventListener(window, 'load', function() {
-				var sel = document.getElementsByName("whichskill")[0];
+				var sel = document.getElementsByName("whichskill");
+				if (!sel.length) return; // no skill element found on page; abort.
+				sel = sel[0];
 				var opts = sel.childNodes; var len = opts.length; var found = false;
 				for(var i=0; i<len; i++) {
 					if(opts[i].value == 19) {
@@ -139,7 +145,13 @@ switch(document.location.pathname) {
 						break;
 					}
 				}
-				if(!found) return;
+				if(!found) {
+					GM_log("can't olfact, skill not found.");
+					var mydiv = document.createElement('div');
+					mydiv.innerHTML = '<center><font color="red">Unable to Olfact: skill not found. (Insufficient MP?)</font></center>';
+					document.body.appendChild(mydiv);
+					return;	// put up a message here about skill not found...
+				}
 			}, true);
 			return false;
 		}
@@ -160,7 +172,7 @@ switch(document.location.pathname) {
 	if (!body.match(/WINWINW|Adventure Again |Go back to /g)){		// still in combat? (no win marker/ no adventure again/ no go back?)
 		var turns = GM_getValue("fightTurns");
 		
-		if (body.match(/Macro Aborted|You twiddle your thumbs/)) {
+		if (body.match(/Macro Aborted|You twiddle your thumbs|Invalid macro command/)) {
 			GM_setValue("aborted",true);
 		}
 
@@ -182,7 +194,8 @@ switch(document.location.pathname) {
 		if (body.match(/You slink away, dejected and defeated./)) {	// occurs both on beaten-up and on >30 rounds.  yay.
 			stopAdventuring("looks like you lost the fight, bucko.");
 		}
-		GM_setValue("aborted",false);		// just in case we managed to twiddle our thumbs outside of a macro.
+		GM_setValue("aborted",false);			// just in case we managed to twiddle our thumbs outside of a macro.
+		GM_setValue("alreadyMacroed",false);	// done trying to hit the macro button.
 		doAutoAdv();					// respects the flag we set in stopAdventuring(), so we're fine with always calling it.
 	}
 	break;
@@ -209,6 +222,7 @@ function drawButtons() {
 	} else {
 		turnsplayed = parseInt(GM_getValue("turnsplayed"))+1;						// otherwise we just assume we spent a turn.
 	}
+	GM_log("uW.tp="+unsafeWindow.turnsplayed);
 	GM_setValue("turnsplayed", turnsplayed);
 	//render the button layout
 	// the variable needtoolfact is a flag to indicate whether or not "On the Trail" is a currently active effect
@@ -251,6 +265,9 @@ function drawButtons() {
 		}
 	}
 	GM_setValue("adventuresLeft", adventuresLeft);
+	var oMon = GM_getValue("olfactString","");
+	var oString = "click to automatically olfact a monster";
+	if (oMon != "") oString = "currently olfacting: "+oMon;
 	var newTable = document.createElement('table');
 	var buffer = "<tr><td title='click to autoattack'>W</td>" +
 				 "<td title='click to auto-use your last-used item'>I</td>" +
@@ -258,7 +275,7 @@ function drawButtons() {
 				 "<td title='click to automatically use your last-used combat macro'>M</td>" +
 				 "<td title='click to automatically adventure again; double-click to auto-adventure for a set number of rounds'>A</td>" +
 //				 "<td title='click to autoheal'>h</td>" +
-				 "<td title='click to automatically olfact a monster'>O</td>" +
+				 "<td id='olabel' title='"+oString+"'>O</td>" +
 				 "<td title='click to quit on seeing some text'>Q</td></tr>" ;
 	addGlobalStyle("table[id='buttonbox'] { table-layout: auto }"
 			+ "table[id='buttonbox'] { border-spacing: 1px }"
@@ -403,16 +420,21 @@ function drawButtons() {
 			}, true);
 			addEventListener(tdArray[i], 'dblclick', function(event) {
 				var monster = GM_getValue("olfactString", monster);
+				var mylabel = document.getElementById('olabel');
 				if(monster == undefined) monster = '';
 				monster = prompt('Transcendently Olfact which monster?', monster);
 				if (monster && monster != '') {
 					GM_setValue("olfactString", monster);
 					GM_setValue("olfact", true);
 					this.setAttribute('class','on');
+					GM_log("current title="+mylabel.title);
+					mylabel.title = 'currently olfacting: '+monster;
+					
 				} else {
 					GM_setValue("olfactString", '');
 					GM_setValue("olfact", false);
 					this.setAttribute('class','off');
+					mylabel.title = 'click to automatically olfact a monster';
 				}
 				event.stopPropagation();
 				event.preventDefault();
@@ -457,11 +479,7 @@ function drawButtons() {
 //
 function grabMPHP() {
 	var charpaneDoc = top.document.getElementsByName('charpane')[0].contentDocument.getElementsByTagName("body")[0];
-	var charpaneHead = top.document.getElementsByName('charpane')[0].contentDocument.getElementsByTagName("head")[0];
 	if (!charpaneDoc) return;
-	pageHeadText = charpaneHead.innerHTML;
-	turnsplayed = parseInt(pageHeadText.split('played =')[1].split(';')[0]);
-	GM_setValue("turnsplayed",turnsplayed);
 	var pageBodyText = charpaneDoc.innerHTML;
 // full mode:
 	var HP = pageBodyText.match(/onclick='doc\("hp"\);'>(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)<\/span>/);
@@ -470,21 +488,17 @@ function grabMPHP() {
 	if (!HP) HP = pageBodyText.match(/HP:(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)/);
 	if (!MP) MP = pageBodyText.match(/MP:(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)/);
 	
-	// Set HP values.
 	if (HP) {
 		GM_setValue("HP", Number(HP[1]));
 		GM_setValue("MaxHP", Number(HP[2]));
-	}
-	else {
+	} else {
 		GM_log("grabMPHP(): Error - Regex used to extract HP/MaxHP failed to match anything.");
 	}
 	
-	// Set MP values.
 	if (MP) {
 		GM_setValue("MP", Number(MP[1]));
 		GM_setValue("MaxMP", Number(MP[2]));
-	}
-	else {
+	} else {
 		GM_log("grabMPHP(): Error - Regex used to extract MP/MaxMP failed to match anything.");
 	}
 }
@@ -575,58 +589,26 @@ function doCombat() {
 
 		switch(useThis) {
 			case ATTACK:
-//			  addEventListener(window, 'load', function() { document.forms.namedItem("attack").submit(); }, true);
 				addEventListener(window, 'load', function() { 
-//					GM_log("calling AttackScript(false)..."); 
 					AttackScript(false); 
 				}, true);
-//					var macrotext = document.getElementsByName("macrotext");
-//					if (!macrotext.length) { 
-////						GM_log("no macro, buttoning."); 
-//						document.forms.namedItem("attack").submit(); 
-//						return; 
-//					}
-//					macrotext[0].value="attack;repeat;"
-////					GM_log("macroing!");
-//					document.forms.namedItem("macro").submit();
-//				}, true);
 			 break;
 			case USE_ITEM:
 			 addEventListener(window, 'load', function() {
 				ItemScript(false);
-//				var itemChosen = getSelectByName("whichitem").selectedIndex;
-//				if (itemChosen == 0){
-//					setToRed();
-//					return;
-//				}
-//				document.forms.namedItem("useitem").submit(); 
 			}, true);
 			break;
 			case USE_SKILL:
 			  addEventListener(window, 'load', function() { 
 				SkillScript(false); return;
-//				var whichSkillRef = getSelectByName("whichskill");  if (!whichSkillRef) return;
-//				if (whichSkillRef.options[whichSkillRef.selectedIndex].value.match(/4014|3009/g)){
-//					for(var i = 0; i < whichSkillRef.length; i++) {
-//						if(whichSkillRef.options[i].value == GM_getValue("storedSkill")) {
-//							whichSkillRef.selectedIndex = i;
-//						}
-//					}
-//				}
-//				if (whichSkillRef.selectedIndex == 0){
-//					setToRed();
-//					return;
-//				}
-//				var costText = whichSkillRef.options[whichSkillRef.selectedIndex].text.match(/\d+/g);
-//				if (costText){
-//					GM_setValue("skillCost", Number(costText[0]));
-//					GM_setValue("MP", GM_getValue("MP") - costText[0]);
-//				}
-//				document.forms.namedItem("skill").submit();
 			  }, true);
 			break;
 			case USE_MACRO:
 				addEventListener(window, 'load', function() {
+					if (GM_getValue("alreadyMacroed")) {
+//						GM_log("already macroed once this combat, not gunna do it again.  No way, no how, nosirree.");
+						return;
+					}
 					var whichMacroRef = getSelectByName("whichmacro"); if (!whichMacroRef) return;
 					var macroChosen = whichMacroRef.selectedIndex;
 					if (macroChosen == 0) {
@@ -638,6 +620,7 @@ function doCombat() {
 						GM_setValue("aborted",false);
 						return;
 					}
+					GM_setValue("alreadyMacroed",true);
 					document.forms.namedItem("macro").submit();
 				}, true);
 			break;
@@ -658,7 +641,6 @@ function doCombat() {
 			for(var i = 0; i < whichSkillRef.length; i++)
 				if(whichSkillRef.options[i].value == GM_getValue("finisher"))
 					whichSkillRef.selectedIndex = i;
-			// GM_log("Using finisher: "+GM_getValue("finisher"));
 			if (whichSkillRef.selectedIndex == 0){
 				setToRed();
 				return;
@@ -683,8 +665,8 @@ function stopAdventuring(msg) {
 //
 function doAutoAdv() {
 	grabCombatInfo();
-//	GM_log("MP: "+GM_getValue("MP")+".  skillCost: "+GM_getValue("skillCost")+".  HP: "+GM_getValue("HP")+".  MonsterDamage: "+GM_getValue("MonsterDamage"));
-//	GM_log(" adventuresLeft: "+GM_getValue("adventuresLeft")+" stopAdvAt: "+GM_getValue("stopAdvAt")+" turns played:" +GM_getValue("turnsplayed"));
+	GM_log("MP: "+GM_getValue("MP")+".  skillCost: "+GM_getValue("skillCost")+".  HP: "+GM_getValue("HP")+".  MonsterDamage: "+GM_getValue("MonsterDamage"));
+	GM_log(" adventuresLeft: "+GM_getValue("adventuresLeft")+" stopAdvAt: "+GM_getValue("stopAdvAt")+" turns played:" +GM_getValue("turnsplayed"));
 	
 	var stopAdvAt = GM_getValue("stopAdvAt");
 	var body = document.getElementsByTagName("body")[0].innerHTML;
@@ -808,18 +790,14 @@ function unregisterEventListeners(event)
 // n.b. When called from DoCombat(), these functions are explicitly passed a parameter of "false".
 //		When called via clicking on the Combat-screen buttons, they are implicitly passed a parameter of the mouse-click event object.
 function AttackScript(setCancel) {
-//	GM_log("in AttackScript.")
 	var macrotext = document.getElementsByName("macrotext");
 	if (!macrotext.length) { 
-//		GM_log("no macro, buttoning attack."); 
-//		GM_log("setCancel="+setCancel);
 		GM_setValue("autoUse",ATTACK);
 		if (setCancel) GM_setValue("cancelAtEnd",1);
 		document.forms.namedItem("attack").submit(); 
 		return; 
 	}
 	macrotext[0].value="attack;repeat;scrollwhendone;"
-//	GM_log("macroing via [Attack!]!");
 	document.forms.namedItem("macro").submit();
 }
 
@@ -831,7 +809,6 @@ function ItemScript(setCancel) {
 	} else {
 		var macrotext = document.getElementsByName("macrotext");
 		if (!macrotext.length) {
-//			GM_log("no macro; buttoning items.");
 			GM_setValue("autoUse",USE_ITEM);
 			if (setCancel) GM_setValue("cancelAtEnd",1);
 			document.forms.namedItem("useitem").submit();
@@ -842,10 +819,8 @@ function ItemScript(setCancel) {
 			if (funksling.length) {
 				itemnumber2 = funksling[0].options[funksling[0].selectedIndex].value;
 			}
-//			GM_log("item 1:" + itemnumber); GM_log("item 2:" + itemnumber2);
 			if (itemnumber2 == 0) macrotext[0].value = "use "+itemnumber + "; repeat;scrollwhendone;";
 			else macrotext[0].value = "use "+itemnumber + "," +itemnumber2 + "; repeat;scrollwhendone;";
-//			GM_log("macro="+macrotext[0].value);
 			document.forms.namedItem("macro").submit();		
 		}
 	}
@@ -865,7 +840,6 @@ function SkillScript(setCancel) {
 		}
 		var macrotext = document.getElementsByName("macrotext");
 		if (!macrotext.length) {
-//			GM_log("no macro box; buttoning skill.");
 //			GM_setValue("autoUse",USE_SKILL);			// these 2 lines would matter if there were a "skill!" button on the combat screen.
 //			if (setCancel) GM_setValue("cancelAtEnd",1);
 			document.forms.namedItem("skill").submit();
