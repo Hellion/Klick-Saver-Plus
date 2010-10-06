@@ -36,19 +36,15 @@ const GO_ALWAYS = 1;
 const GO_CONDITIONAL = 3;
 const AUTO_USE_LIMIT = 26;	//the default round at which autoUse will be temporarily disabled
 const SAFETY_NUMBER = 1.8;	//This is extra safety factor which is used with monster damage
-const STOP_LIST = "abridged dictionary, "+
-			"pail of pretentious paint, "+
+const STOP_LIST = "pail of pretentious paint, "+
 			"pretentious paintbrush, "+
 			"pretentious palette, "+
-			"plus sign, "+
 			"box of birthday candles, "+
 			"eldritch butterknife, "+
 			"dodecagram, "+
 			"S.O.C.K., "+
 			"mosquito larva, "+
-			"wussiness potion, "+
 			"ruby W, "+
-			//"chaos butterfly, "+
 			"sonar-in-a-biscuit, "+
 			"baseball, "+
 			"enchanted bean";
@@ -482,8 +478,8 @@ function grabMPHP() {
 	if (!charpaneDoc) return;
 	var pageBodyText = charpaneDoc.innerHTML;
 // full mode:
-	var HP = pageBodyText.match(/onclick='doc\("hp"\);'>(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)<\/span>/);
-	var MP = pageBodyText.match(/onclick='doc\("mp"\);'>(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)<\/span>/);
+	var HP = pageBodyText.match(/onclick='doc\("hp"\);'[^>]*>(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)<\/span>/);
+	var MP = pageBodyText.match(/onclick='doc\("mp"\);'[^>]*>(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)<\/span>/);
 // compact mode: 
 	if (!HP) HP = pageBodyText.match(/HP:(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)/);
 	if (!MP) MP = pageBodyText.match(/MP:(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)/);
