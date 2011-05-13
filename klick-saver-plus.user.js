@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Klick-saver Plus
-// @version        1.75
+// @version        1.76
 // @namespace      http://kobe.cool.ne.jp/yehman/
 // @homepage       http://www.frogorbits.com/kol/
 // @copyright      © 2010 Nathan Sharfi, Shawn Yeh, and Nick England
@@ -696,7 +696,8 @@ function doAutoAdv() {
 		addEventListener(window, 'load', function() {
 			var anchors = document.getElementsByTagName("a");
 			for (var i = 0; i < anchors.length; i++) {
-				if ((anchors[i].getAttribute('href')) && (anchors[i].getAttribute("href").indexOf("adventure.php") != -1)) {
+				if (((anchors[i].getAttribute('href')) && (anchors[i].getAttribute("href").indexOf("adventure.php") != -1)) ||
+					((anchors[i].getAttribute('href')) && (anchors[i].getAttribute("href").indexOf("invasion.php?action") != -1))) {
 //					GM_log("href="+anchors[i].getAttribute('href')+"; using anchor "+i);
 					document.location = anchors[i]; // document.links[i];
 					break;
@@ -793,7 +794,7 @@ function AttackScript(setCancel) {
 		document.forms.namedItem("attack").submit(); 
 		return; 
 	}
-	macrotext[0].value="attack;repeat;scrollwhendone;"
+	macrotext[0].value="abort pastround 25;attack;repeat;scrollwhendone;"
 	document.forms.namedItem("macro").submit();
 }
 
@@ -815,8 +816,8 @@ function ItemScript(setCancel) {
 			if (funksling.length) {
 				itemnumber2 = funksling[0].options[funksling[0].selectedIndex].value;
 			}
-			if (itemnumber2 == 0) macrotext[0].value = "use "+itemnumber + "; repeat;scrollwhendone;";
-			else macrotext[0].value = "use "+itemnumber + "," +itemnumber2 + "; repeat;scrollwhendone;";
+			if (itemnumber2 == 0) macrotext[0].value = "abort pastround 25;use "+itemnumber + "; repeat;scrollwhendone;";
+			else macrotext[0].value = "abort pastround 25;use "+itemnumber + "," +itemnumber2 + "; repeat;scrollwhendone;";
 			document.forms.namedItem("macro").submit();		
 		}
 	}
@@ -841,7 +842,7 @@ function SkillScript(setCancel) {
 			document.forms.namedItem("skill").submit();
 		} else {
 			var skillNumber=skillList[0].options[skillList[0].selectedIndex].value;
-			macrotext[0].value="skill "+skillNumber+"; repeat;";
+			macrotext[0].value="abort pastround 25;skill "+skillNumber+"; repeat;";
 			document.forms.namedItem("macro").submit();
 		}
 	}
