@@ -78,6 +78,7 @@ switch(document.location.pathname) {
 	GM_setValue("MonsterDamage",0);			// Smallest Monster damage received from this fight
 	GM_setValue("aborted",false);			// combat macro aborted, manual intervention necessary
 	GM_setValue("alreadyMacroed",false);	// auto-used a macro once this combat already
+	GM_setValue("hideme",false);			// minimize memory leakage with a choice to hide buttons when you're not gonna use 'em.
 	
 	if (!GM_getValue("turnLimit")) GM_setValue("turnLimit", AUTO_USE_LIMIT);
 	if (!GM_getValue("finisher")) GM_setValue("finisher", 0);
@@ -146,7 +147,7 @@ switch(document.location.pathname) {
 					var mydiv = document.createElement('div');
 					mydiv.innerHTML = '<center><font color="red">Unable to Olfact: skill not found. (Insufficient MP?)</font></center>';
 					document.body.appendChild(mydiv);
-					return;	// put up a message here about skill not found...
+					return;	// return without submitting anything, so the script halts.
 				}
 			}, true);
 			return false;
@@ -212,6 +213,7 @@ switch(document.location.pathname) {
 function drawButtons() {
 	var charpaneHead = top.document.getElementsByName('charpane')[0].contentDocument.getElementsByTagName("head")[0];
 	var pageHeadText = charpaneHead.innerHTML;
+	var adventuresLeft = 0;
 //	GM_log("pHT="+pageHeadText);
 	if (pageHeadText.indexOf('played =') != -1) {
 		turnsplayed = parseInt(pageHeadText.split('played =')[1].split(';')[0]);	// read it directly from the charpane if possible.
@@ -225,13 +227,14 @@ function drawButtons() {
 	// (i.e. are we already olfacting something).  If True, then we need to olfact ASAP.
 	var needtoolfact = false;
 	var fullTest = document.getElementsByTagName("a")[0]; if (!fullTest) return;
+//	GM_log("fulltest.innerHTML="+fullTest.innerHTML);
 	if (fullTest.innerHTML.indexOf("/otherimages/") == -1){		// lacking a graphic from the otherimages directory, we assume that we are in Compact Mode.
 		var insertAt = document.getElementsByTagName("hr")[0];
 		var newHr = document.createElement('hr');
 		newHr.setAttribute('width','50%');
 		insertAt.parentNode.insertBefore(newHr, insertAt.nextSibling);
 		var test = document.getElementsByTagName("body")[0].innerHTML.substr(document.getElementsByTagName("body")[0].innerHTML.indexOf("Adv</a>:") + 33, 4);
-		var adventuresLeft = parseInt(test);
+		adventuresLeft = parseInt(test);
 		if(GM_getValue("olfact")) {
 			needtoolfact = true;
 // find "On the Trail" in compact mode by using the Alt tags on images.
@@ -246,7 +249,7 @@ function drawButtons() {
 		}
 	} else {		// otherwise, we are in Full Mode.
 		var insertAt = document.getElementsByTagName("table")[0];
-		var adventuresLeft = parseInt(document.getElementsByTagName("span")[3].innerHTML);
+		adventuresLeft = parseInt(document.getElementsByTagName("span")[3].innerHTML);
 		if(GM_getValue("olfact")) {
 			needtoolfact = true;
 // find "On the Trail" in full mode by using the description text in the font tags.
@@ -285,6 +288,8 @@ function drawButtons() {
 			+ "table[id='buttonbox'] td.warn { background-color: red }"
 			+ "table[id='buttonbox'] td.half { background-color: #32CD32 }"
 				);
+//	var A_only_buffer = "<td title='click to automatically adventure again; double-click to auto-adventure for a set number of rounds'>A</td>";
+
 	newTable.setAttribute('id','buttonbox');
 	newTable.innerHTML = buffer;
 	var tdArray = newTable.getElementsByTagName("td");
@@ -299,11 +304,40 @@ function drawButtons() {
 	if (GM_getValue("stopGo"))
 		tdArray[6].setAttribute('class','on');
 
+	if (GM_getValue("hideme") == true) {
+		var hidebuffer = "<tr><td title='click to re-enable button bar'>B</td>";
+		newTable.innerHTML = hidebuffer;
+		tdArray = newTable.getElementsByTagName("td");
+		addEventListener(tdArray[0], 'click', function(event) {
+			var hidden = GM_getValue("hideme");
+			hidden = !hidden;
+			GM_log("hidden="+hidden);
+			GM_setValue("hideme",hidden);
+		}, true);
+		insertAt.parentNode.insertBefore(newTable, insertAt.nextSibling);
+		return;
+	}
+	
+	//  If currently auto-adventuring, show only A button.
+	if (GM_getValue("repeatAdv") != OFF) {
+		GM_log("only drawing A button.");
+		var A_only_buffer = "<td title='click to automatically adventure again; double-click to auto-adventure for a set number of rounds'>A</td>";
+		newTable.innerHTML = A_only_buffer;
+		tdArray = newTable.getElementsByTagName("td");
+		if (GM_getValue("repeatAdv"))
+			tdArray[0].setAttribute('class',(GM_getValue("repeatAdv") < 2)?'on':'half');
+		if (GM_getValue("stopAdvAt") > turnsplayed && GM_getValue("stopAdvAt") > 0)
+			tdArray[0].innerHTML = GM_getValue("stopAdvAt") - turnsplayed;
+		activate_A_button(tdArray[0],adventuresLeft, turnsplayed);
+		insertAt.parentNode.insertBefore(newTable, insertAt.nextSibling);
+		return;
+	}
 	
 	//add button functions
 	for (var i=0; i<tdArray.length; i++){
 		switch (i) {
 		   case 0:	// W
+//		   GM_log("adding click");
 			addEventListener(tdArray[i], 'click', function(event) {
 				if (GM_getValue("autoUse") % 5 == ATTACK){
 				  GM_setValue("autoUse", OFF);
@@ -316,6 +350,7 @@ function drawButtons() {
 				  this.nextSibling.nextSibling.nextSibling.setAttribute('class','off'); // M off
 				}
 			}, true);
+//		   GM_log("adding dlbclick");
 			addEventListener(tdArray[i], 'dblclick', function(event) {
 				var turnLimit = parseInt(prompt('Stop Auto-Doing Stuff after XX Rounds... (1-29)'));
 				if (turnLimit > 1 && turnLimit < 30 )
@@ -323,6 +358,14 @@ function drawButtons() {
 				else
 					GM_setValue("turnLimit", AUTO_USE_LIMIT);
 			}, true);
+//		   GM_log("adding rightclick");
+			addEventListener(tdArray[i], 'contextmenu', function(event) {
+				var hidden = GM_getValue("hideme");
+				hidden = !hidden;
+				GM_setValue("hideme",hidden);
+			}, true);
+			
+//		   GM_log("done W");
 		      break;
 		   case 1:	// I
 			addEventListener(tdArray[i], 'click', function(event) {
@@ -423,7 +466,7 @@ function drawButtons() {
 					GM_setValue("olfactString", monster);
 					GM_setValue("olfact", true);
 					this.setAttribute('class','on');
-					GM_log("current title="+mylabel.title);
+//					GM_log("current title="+mylabel.title);
 					mylabel.title = 'currently olfacting: '+monster;
 					
 				} else {
@@ -468,6 +511,46 @@ function drawButtons() {
 	}
 
 	insertAt.parentNode.insertBefore(newTable, insertAt.nextSibling);
+}
+
+function activate_A_button(tdItem, adventuresLeft, turnsplayed) {
+
+	addEventListener(tdItem, 'contextmenu', function(event) {
+		if (event.button == 2){
+			event.stopPropagation();
+			event.preventDefault();
+		}
+	}, false);
+	addEventListener(tdItem, 'mousedown', function(event) {
+		if (event.button == 2 && GM_getValue("repeatAdv") != GO_CONDITIONAL){
+		  GM_setValue("repeatAdv", GO_CONDITIONAL);
+		  this.setAttribute('class','half');
+		}else if (event.button == 0 && GM_getValue("repeatAdv") != GO_ALWAYS){
+		  GM_setValue("repeatAdv", GO_ALWAYS);
+		  this.setAttribute('class','on');
+		}else{
+		  GM_setValue("repeatAdv", OFF);
+//				  GM_log("ungreening A due to button-click");
+		  this.setAttribute('class','off');
+		}
+	}, true);
+	addEventListener(tdItem, 'dblclick', function(event) {
+		var adventureLimit = parseInt(prompt('Auto-adventure for how many turns?'));
+		if (adventureLimit > adventuresLeft) adventureLimit = adventuresLeft;
+		else if (adventureLimit < 0 || !adventureLimit) adventureLimit = 0;
+		if (adventureLimit > 0) {
+			GM_setValue("stopAdvAt", turnsplayed + adventureLimit);
+			GM_setValue("repeatAdv", GO_ALWAYS);
+			this.innerHTML = adventureLimit;
+			this.setAttribute('class','on');
+		}else if (adventureLimit == 0){
+			GM_setValue("stopAdvAt", turnsplayed);
+			GM_setValue("repeatAdv", OFF);
+//					GM_log("ungreening A due to 0 turns entered");
+			this.innerHTML = 'A';
+			this.setAttribute('class','off');
+		}
+	}, true);
 }
 
 
@@ -692,6 +775,7 @@ function doAutoAdv() {
 		GM_setValue("autoUse", OFF);
 		GM_setValue("cancelAtEnd", OFF);
 	}
+	GM_log("end-of-combat resets complete.");
 	if (GM_getValue("repeatAdv")) {
 		addEventListener(window, 'load', function() {
 			var anchors = document.getElementsByTagName("a");
@@ -776,7 +860,7 @@ function addEventListener(target, event, listener, capture)
 }
 function unregisterEventListeners(event)
 {
-    for (var i = 0; i < registeredEventListeners.length; i++)
+    for (var i = 1; i < registeredEventListeners.length; i++) // was 0
     {
         var rel = registeredEventListeners[i];
         rel[0].removeEventListener(rel[1], rel[2], rel[3]);
