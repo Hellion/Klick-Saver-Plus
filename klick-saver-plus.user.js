@@ -90,7 +90,11 @@ switch(document.location.pathname) {
 	break;
 
   case "/fight.php":
-	var FightHeader = document.getElementsByTagName("b"); if (!FightHeader) return; 
+	var FightHeader = document.getElementsByTagName("b"); 
+	if (!FightHeader) {
+		GM_log("no fight header found, aborting combat action.");
+		return; 
+	}
 	FightHeader = FightHeader[0];
 	var body = document.getElementsByTagName("body")[0].innerHTML;
 //----------------------
@@ -130,7 +134,10 @@ switch(document.location.pathname) {
 			GM_setValue("olfactGo", false);
 			addEventListener(window, 'load', function() {
 				var sel = document.getElementsByName("whichskill");
-				if (!sel.length) return; // no skill element found on page; abort.
+				if (!sel.length) {
+					GM_log("no skill input box found; aborting combat action.");
+					return; // no skill element found on page; abort.
+				}
 				sel = sel[0];
 				var opts = sel.childNodes; var len = opts.length; var found = false;
 				for(var i=0; i<len; i++) {
@@ -226,9 +233,13 @@ function drawButtons() {
 	// the variable needtoolfact is a flag to indicate whether or not "On the Trail" is a currently active effect
 	// (i.e. are we already olfacting something).  If True, then we need to olfact ASAP.
 	var needtoolfact = false;
-	var fullTest = document.getElementsByTagName("a")[0]; if (!fullTest) return;
-//	GM_log("fulltest.innerHTML="+fullTest.innerHTML);
-	if (fullTest.innerHTML.indexOf("/otherimages/") == -1){		// lacking a graphic from the otherimages directory, we assume that we are in Compact Mode.
+	var fullTest = document.getElementsByTagName("a")[0]; 
+	if (!fullTest) {
+		GM_log("Unable to determine if we're in full or compact mode.  Exiting.");
+		return;
+	}
+//	first link in the charpane in Full Mode is your avatar icon, which comes from the /otherimages/ directory.
+	if (fullTest.innerHTML.indexOf("/otherimages/") == -1){		// lacking a graphic from the /otherimages/ directory, we assume that we are in Compact Mode.
 		var insertAt = document.getElementsByTagName("hr")[0];
 		var newHr = document.createElement('hr');
 		newHr.setAttribute('width','50%');
@@ -558,7 +569,10 @@ function activate_A_button(tdItem, adventuresLeft, turnsplayed) {
 //
 function grabMPHP() {
 	var charpaneDoc = top.document.getElementsByName('charpane')[0].contentDocument.getElementsByTagName("body")[0];
-	if (!charpaneDoc) return;
+	if (!charpaneDoc) { 
+		GM_log("no content available to process in grabMPHP(); continuing without extra info.");
+		return;
+	}
 	var pageBodyText = charpaneDoc.innerHTML;
 // full mode:
 	var HP = pageBodyText.match(/onclick='doc\("hp"\);'[^>]*>(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)<\/span>/);
