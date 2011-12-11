@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Klick-saver Plus
-// @version        1.76
+// @version        1.77
 // @namespace      http://kobe.cool.ne.jp/yehman/
 // @homepage       http://www.frogorbits.com/kol/
 // @copyright      © 2010 Nathan Sharfi, Shawn Yeh, and Nick England
@@ -57,7 +57,7 @@ var turnsplayed = 0;
 var registeredEventListeners = new Array();
 addEventListener(window, 'unload', unregisterEventListeners, false);
 
-SGM_log("doc.loc.path="+document.location.pathname);
+//SGM_log("doc.loc.path="+document.location.pathname);
 
 function SGM_log(message) {
 //	return;
@@ -68,7 +68,6 @@ switch(document.location.pathname) {
   case "/main_c.html":
   case "/game.php":
   case "/main.html":
-	SGM_log("Initialize Values.");
 	GM_setValue("autoUse", 0);				// 0: off  1: weapon  2: item  3: skill  4: macro
 	GM_setValue("repeatAdv", 0);			// 0: off  1: normal  3: stop on specific item drops
 	GM_setValue("fightTurns", COUNTER);
@@ -106,7 +105,9 @@ switch(document.location.pathname) {
 			}
 			else SGM_log("fightwas = "+fightturn+"; turnsplayed="+testturnsplayed+".  fightturn>=turnsplayed-1; leaving things alone.");
 		}
+		else SGM_log("not a fight, so not checking from charpane");
 	}
+	else SGM_log("repeatAdv is Off, not checking for advanture-again from charpane");
 	//SGM_log("mainpane="+fightpaneDoc.innerHTML);
 	break;
 
@@ -114,7 +115,6 @@ switch(document.location.pathname) {
 		doMainFight();
 	break;
 	case "/trickortreat.php":
-		SGM_log("t-or-t!");
 		doHalloween();
 	break;
 
@@ -187,6 +187,7 @@ function doMainFight() {
 				for(var i=0; i<len; i++) {
 					if(opts[i].value == 19) {
 						found = true;
+						SGM_log("oldskill="+opts[sel.selectedIndex].value);
 						GM_setValue("oldskill", opts[sel.selectedIndex].value);
 						sel.selectedIndex = i;
 						document.forms.namedItem("skill").submit();
@@ -241,6 +242,7 @@ function doMainFight() {
 	//if we get here, it must be the end of a combat
 	else {
 		var foo = GM_getValue("turnsplayed");
+		SGM_log("foo="+foo);
 		GM_setValue("fightcompleteturn",foo);	// mark fight as complete.
 		SGM_log("fight completed, fightturn set to "+foo);
 		if (body.match(/You slink away, dejected and defeated./)) {	// occurs both on beaten-up and on >30 rounds.  yay.
@@ -253,15 +255,9 @@ function doMainFight() {
 }
 
 function drawButtons() {
-//	var charpaneHead = top.document.getElementsByName('charpane')[0].contentDocument.getElementsByTagName("head")[0];
-//	var pageHeadText = charpaneHead.innerHTML;
+
 	var adventuresLeft = 0;
-////	SGM_log("pHT="+pageHeadText);
-//	if (pageHeadText.indexOf('played =') != -1) {
-//		turnsplayed = parseInt(pageHeadText.split('played =')[1].split(';')[0]);	// read it directly from the charpane if possible.
-//	} else {
-//		turnsplayed = parseInt(GM_getValue("turnsplayed"))+1;						// otherwise we just assume we spent a turn.
-//	}
+
 	turnsplayed = unsafeWindow.turnsplayed;
 	SGM_log("uW.tp="+unsafeWindow.turnsplayed);
 	GM_setValue("turnsplayed", turnsplayed);
@@ -297,13 +293,16 @@ GM_log("test="+test+", advLeft (compact)="+adventuresLeft);
 		}
 	} else {		// otherwise, we are in Full Mode.
 		var insertAt = document.getElementsByTagName("table")[0];
-		// account for possible outfit name in the charpane
-		if (document.getElementsByTagName("span")[0].className == "black") {
-			adventuresLeft = parseInt(document.getElementsByTagName("span")[3].innerHTML);
-		} else {
-			adventuresLeft = parseInt(document.getElementsByTagName("span")[4].innerHTML);
-		}	
-//		GM_log("advLeft (full)="+adventuresLeft);		
+		adventuresLeft = document.getElementsByTagName("img")[4].nextSibling.nextSibling.innerHTML;
+//		SGM_log("debugme="+debugme);
+		// account for possible outfit name in a span at the top of the charpane
+//		if ((document.getElementsByTagName("span")[0].className == "black") ||
+//		     (document.getElementsByTagName("span")[0].className == "red")) {
+//			adventuresLeft = parseInt(document.getElementsByTagName("span")[3].innerHTML);
+//		} else {
+//			adventuresLeft = parseInt(document.getElementsByTagName("span")[4].innerHTML);
+//		}	
+		GM_log("advLeft (full)="+adventuresLeft);		
 		if(GM_getValue("olfact")) {
 			needtoolfact = true;
 // find "On the Trail" in full mode by using the description text in the font tags.
@@ -317,7 +316,9 @@ GM_log("test="+test+", advLeft (compact)="+adventuresLeft);
 			else GM_setValue("olfactGo", false);
 		}
 	}
-	GM_setValue("adventuresLeft", adventuresLeft);
+	if (!isNaN(adventuresLeft) GM_setValue("adventuresLeft", adventuresLeft);
+	else GM_log("unable to read adventuresLeft in full-mode charpane!");
+	
 	var oMon = GM_getValue("olfactString","");
 	var oString = "click to automatically olfact a monster";
 	if (oMon != "") oString = "currently olfacting: "+oMon;
@@ -365,7 +366,6 @@ GM_log("test="+test+", advLeft (compact)="+adventuresLeft);
 		addEventListener(tdArray[0], 'click', function(event) {
 			var hidden = GM_getValue("hideme");
 			hidden = !hidden;
-//			SGM_log("hidden="+hidden);
 			GM_setValue("hideme",hidden);
 		}, true);
 		insertAt.parentNode.insertBefore(newTable, insertAt.nextSibling);
@@ -374,7 +374,6 @@ GM_log("test="+test+", advLeft (compact)="+adventuresLeft);
 	
 	//  If currently auto-adventuring, show only A button.
 	if (GM_getValue("repeatAdv") != OFF) {
-//		SGM_log("only drawing A button.");
 		var A_only_buffer = "<td title='click to automatically adventure again; double-click to auto-adventure for a set number of rounds'>A</td>";
 		newTable.innerHTML = A_only_buffer;
 		tdArray = newTable.getElementsByTagName("td");
@@ -391,7 +390,6 @@ GM_log("test="+test+", advLeft (compact)="+adventuresLeft);
 	for (var i=0; i<tdArray.length; i++){
 		switch (i) {
 		   case 0:	// W
-//		   SGM_log("adding click");
 			addEventListener(tdArray[i], 'click', function(event) {
 				if (GM_getValue("autoUse") % 5 == ATTACK){
 				  GM_setValue("autoUse", OFF);
@@ -404,7 +402,6 @@ GM_log("test="+test+", advLeft (compact)="+adventuresLeft);
 				  this.nextSibling.nextSibling.nextSibling.setAttribute('class','off'); // M off
 				}
 			}, true);
-//		   SGM_log("adding dlbclick");
 			addEventListener(tdArray[i], 'dblclick', function(event) {
 				var turnLimit = parseInt(prompt('Stop Auto-Doing Stuff after XX Rounds... (1-29)'));
 				if (turnLimit > 1 && turnLimit < 30 )
@@ -412,14 +409,12 @@ GM_log("test="+test+", advLeft (compact)="+adventuresLeft);
 				else
 					GM_setValue("turnLimit", AUTO_USE_LIMIT);
 			}, true);
-//		   SGM_log("adding rightclick");
 			addEventListener(tdArray[i], 'contextmenu', function(event) {
 				var hidden = GM_getValue("hideme");
 				hidden = !hidden;
 				GM_setValue("hideme",hidden);
 			}, true);
 			
-//		   SGM_log("done W");
 		      break;
 		   case 1:	// I
 			addEventListener(tdArray[i], 'click', function(event) {
@@ -520,7 +515,6 @@ GM_log("test="+test+", advLeft (compact)="+adventuresLeft);
 					GM_setValue("olfactString", monster);
 					GM_setValue("olfact", true);
 					this.setAttribute('class','on');
-//					SGM_log("current title="+mylabel.title);
 					mylabel.title = 'currently olfacting: '+monster;
 					
 				} else {
@@ -659,14 +653,12 @@ function addInputButtons() {
 	NewItem.setAttribute('style','margin-left:1em;display:inline;');
 	addEventListener(NewItem, 'click', ItemScript, true);
 	document.getElementById("NewAttack").parentNode.appendChild(NewItem);
-//	SGM_log("done buttoning.");
 }
 
 
 // Grab combat information like MP, HP, monster damage, and fumble damage
 //
 function grabCombatInfo(){
-//	SGM_log("grabCombatInfo");
 	var pageBodyText = document.getElementsByTagName("body")[0].innerHTML;
 	
 	//This section grabs MP healing
@@ -713,13 +705,10 @@ function grabCombatInfo(){
 			//SGM_log("MDam: "+GM_getValue("MonsterDamage") +", current HP: "+GM_getValue("HP"));
 		}
 	}
-//	SGM_log("done grabCombatInfo");
 }
 
 function doCombat(turns) {
-//	SGM_log("doCombat");
 	if (GM_getValue("fightTurns") < GM_getValue("turnLimit")) {
-//		SGM_log("in auto-fight block.");
 		var useThis = GM_getValue("autoUse") % 5;
 		GM_setValue("autoUse",useThis);
 
@@ -800,14 +789,17 @@ function doCombat(turns) {
 				return;
 			}
 			var costText = whichSkillRef.options[whichSkillRef.selectedIndex].text.match(/\d+/g);
-			if (costText) GM_setValue("MP", GM_getValue("MP") - costText[0]);
+			if (costText) {
+//				GM_log("costtext0="+costText[0]);
+				GM_setValue("MP", GM_getValue("MP") - costText[0]);
+			}
 			document.forms.namedItem("skill").submit();		
 		  }, true);
 	} else {
 		setToRed();
 	}
+//	GM_log("fightTurns="+turns);
 	GM_setValue("fightTurns", ++turns);
-//	SGM_log("done doCombat");
 }
 
 
@@ -820,7 +812,6 @@ function stopAdventuring(msg) {
 // if forceframe <> 0, force the fight to load in frame 2 (mainpane) because this routine
 // is being called from a different frame.
 function doAutoAdv(forceframe) {
-	SGM_log("doAutoAdv");
 	grabCombatInfo();
 	SGM_log("MP: "+GM_getValue("MP")+".  skillCost: "+GM_getValue("skillCost")+".  HP: "+GM_getValue("HP")+".  MonsterDamage: "+GM_getValue("MonsterDamage"));
 	SGM_log(" adventuresLeft: "+GM_getValue("adventuresLeft")+" stopAdvAt: "+GM_getValue("stopAdvAt")+" turns played:" +GM_getValue("turnsplayed"));
@@ -987,7 +978,7 @@ function buildPrefs()
 		subhead.textContent = scriptName;
 		
 		var outerdiv = document.createElement('div');
-		outerdiv.setAttribute('id','MrDiv');
+		outerdiv.setAttribute('id','KSP-Div');
 		outerdiv.style["border"] = "1px solid blue";
 		outerdiv.style["width"] = "95%";
 		
@@ -1009,7 +1000,6 @@ function buildPrefs()
 		
 		guts.appendChild(outerdiv);
 		
-//		SGM_log("guts="+guts.innerHTML);
 		return guts;
 	}
 
@@ -1039,7 +1029,6 @@ function unregisterEventListeners(event)
 // n.b. When called from DoCombat(), these functions are explicitly passed a parameter of "false".
 //		When called via clicking on the Combat-screen buttons, they are implicitly passed a parameter of the mouse-click event object.
 function AttackScript(setCancel) {
-	SGM_log("attack script");
 	var macrotext = document.getElementsByName("macrotext");
 	if (!macrotext.length) { 
 		GM_setValue("autoUse",ATTACK);
@@ -1047,12 +1036,11 @@ function AttackScript(setCancel) {
 		document.forms.namedItem("attack").submit(); 
 		return; 
 	}
-	macrotext[0].value="abort pastround 25;attack;repeat;scrollwhendone;"
+	macrotext[0].value="abort pastround 25;attack;repeat;"
 	document.forms.namedItem("macro").submit();
 }
 
 function ItemScript(setCancel) {
-	SGM_log("item script");
 	var itemSelect = document.getElementsByName("whichitem");
 	if (itemSelect[0].selectedIndex == 0) {
 //		SGM_log("no item selected; abort.");
@@ -1070,15 +1058,14 @@ function ItemScript(setCancel) {
 			if (funksling.length) {
 				itemnumber2 = funksling[0].options[funksling[0].selectedIndex].value;
 			}
-			if (itemnumber2 == 0) macrotext[0].value = "abort pastround 25;use "+itemnumber + "; repeat;scrollwhendone;";
-			else macrotext[0].value = "abort pastround 25;use "+itemnumber + "," +itemnumber2 + "; repeat;scrollwhendone;";
+			if (itemnumber2 == 0) macrotext[0].value = "abort pastround 25;use "+itemnumber + "; repeat;";
+			else macrotext[0].value = "abort pastround 25;use "+itemnumber + "," +itemnumber2 + "; repeat;";
 			document.forms.namedItem("macro").submit();		
 		}
 	}
 }
 
 function SkillScript(setCancel) {
-	SGM_log("skill script");
 	var skillList=document.getElementsByName("whichskill");
 	if (skillList[0].selectedIndex == 0) {
 		SGM_log("No skill selected; abort.");
@@ -1086,6 +1073,7 @@ function SkillScript(setCancel) {
 	} else {
 		var costText = skillList[0].options[skillList[0].selectedIndex].text.match(/\d+/g);	// please never have a skill with a number in its name.
 		if (costText){
+			GM_log("cost="+Number(costText[0]));
 			GM_setValue("skillCost", Number(costText[0]));
 			GM_setValue("MP", GM_getValue("MP") - costText[0]);	// this will be inaccurate if we macro it, but hopefully that won't matter
 																// because we'll get correct values when the macro finishes.
@@ -1138,17 +1126,17 @@ function GM_get(page, callback)
 
 function insertAttack(txt)
 {
-	SGM_log("txt="+txt);
-	var pdiv = document.createElement('div');
-	pdiv.innerHTML = txt;
-	var abox = pdiv.getElementsByName('whichattack');
-	SGM_log("abox="+abox.innerHTML);
-	var fButton = document.getElementById('finisherButton');
-	fButton.appendChild(abox);
+// this routine doesn't work right.  feh.
+//	SGM_log("txt="+txt);
+//	var pdiv = document.createElement('div');
+//	pdiv.innerHTML = txt;
+//	var abox = pdiv.getElementsByName('whichattack');
+//	SGM_log("abox="+abox.innerHTML);
+//	var fButton = document.getElementById('finisherButton');
+//	fButton.appendChild(abox);
 }
 	
 function doHalloween() {
-	SGM_log("doHalloween");
 	var stopAdvAt = GM_getValue("stopAdvAt");
 	var body = document.getElementsByTagName("body")[0].innerHTML;
 	
@@ -1167,10 +1155,9 @@ function doHalloween() {
 		GM_setValue("autoUse", OFF);
 		GM_setValue("cancelAtEnd", OFF);
 	}
-	SGM_log("end-of-combat resets complete.");
+	SGM_log("end-of-combat resets complete in doHalloween.");
 	if (GM_getValue("repeatAdv")) {
 		GM_log("trick-or-treating again...");
 		document.forms[0].submit();
 	}
-//	SGM_log("done doAutoAdv");
 }
