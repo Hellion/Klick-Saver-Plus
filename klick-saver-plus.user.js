@@ -60,7 +60,7 @@ addEventListener(window, 'unload', unregisterEventListeners, false);
 //SGM_log("doc.loc.path="+document.location.pathname);
 
 function SGM_log(message) {
-//	return;
+	return;
 	GM_log(message);
 }
 
@@ -316,7 +316,7 @@ GM_log("test="+test+", advLeft (compact)="+adventuresLeft);
 			else GM_setValue("olfactGo", false);
 		}
 	}
-	if (!isNaN(adventuresLeft) GM_setValue("adventuresLeft", adventuresLeft);
+	if (!isNaN(adventuresLeft)) GM_setValue("adventuresLeft", adventuresLeft);
 	else GM_log("unable to read adventuresLeft in full-mode charpane!");
 	
 	var oMon = GM_getValue("olfactString","");
@@ -614,6 +614,8 @@ function grabMPHP() {
 // full mode:
 	var HP = pageBodyText.match(/onclick='doc\("hp"\);'[^>]*>(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)<\/span>/);
 	var MP = pageBodyText.match(/onclick='doc\("mp"\);'[^>]*>(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)<\/span>/);
+	if (!HP) HP = pageBodyText.match(/onclick="doc\(&quot;hp&quot;\);"[^>]*>(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)<\/span>/);
+	if (!MP) MP = pageBodyText.match(/onclick='doc\(&quot;mp&quot;\);'[^>]*>(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)<\/span>/);
 // compact mode: 
 	if (!HP) HP = pageBodyText.match(/HP:(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)/);
 	if (!MP) MP = pageBodyText.match(/MP:(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)/);
@@ -852,6 +854,7 @@ function doAutoAdv(forceframe) {
 			var anchors = document.getElementsByTagName("a");
 			for (var i = 0; i < anchors.length; i++) {
 				if (((anchors[i].getAttribute('href')) && (anchors[i].getAttribute("href").indexOf("adventure.php") != -1)) ||
+					((anchors[i].getAttribute('href')) && (anchors[i].getAttribute("href").indexOf("plains.php?action=brushfire") != -1)) ||
 					((anchors[i].getAttribute('href')) && (anchors[i].getAttribute("href").indexOf("invasion.php?action") != -1))) {
 //					SGM_log("href="+anchors[i].getAttribute('href')+"; using anchor "+i);
 					if (forceframe == 2) { 
