@@ -22,6 +22,10 @@
 // @include        *kingdomofloathing.com/account.php
 // @exclude        forums*kingdomofloathing.com*
 // @include        http://127.0.0.1:*
+// @grant	GM_log
+// @grant	GM_setValue
+// @grant	GM_getValue
+// @grant	GM_xmlhttpRequest
 // @description    Adds buttons to your charpane which let you select Auto(W)eapon, (I)tem, (S)kill, (M)acro, (A)dventure, (O)lfact, and/or (Q)uit on. Hover your mouse over each button to see what it does when clicked or double-clicked.
 // ==/UserScript==
 
@@ -123,6 +127,7 @@ switch(document.location.pathname) {
   case "/adventure.php":
   case "/choice.php":
   case "/ocean.php":
+		grabMPHP();
 		GM_setValue("fightcompleteturn",GM_getValue("turnsplayed"));	// record this round as completed.
 		SGM_log("setting fightcompleteturn to "+GM_getValue("turnsplayed")+" from choice/adv/ocean");
 		if(GM_getValue("repeatAdv"))
@@ -258,7 +263,7 @@ function doMainFight() {
 
 function drawButtons() {
 
-	var adventuresLeft = 0;
+	var adventuresLeft = GM_getValue("adventuresLeft");
 	var insertAt;
 
 	turnsplayed = unsafeWindow.turnsplayed;
@@ -283,9 +288,6 @@ function drawButtons() {
 		var newHr = document.createElement('hr');
 		newHr.setAttribute('width','50%');
 		insertAt.parentNode.insertBefore(newHr, insertAt.nextSibling);
-		var test = document.getElementsByTagName("body")[0].innerHTML.substr(document.getElementsByTagName("body")[0].innerHTML.indexOf("Adv</a>:") + 33, 4);
-		adventuresLeft = parseInt(test);
-//		SGM_log("test="+test+", advLeft (compact)="+adventuresLeft);		
 		if(GM_getValue("olfact")) {
 			needtoolfact = true;
 // find "On the Trail" in compact mode by using the Alt tags on images.
@@ -300,8 +302,6 @@ function drawButtons() {
 		}
 	} else {		// otherwise, we are in Full Mode.
 		insertAt = document.getElementsByTagName("table")[0];
-		adventuresLeft = document.getElementsByTagName("img")[4].nextSibling.nextSibling.innerHTML;
-		SGM_log("advLeft (full)="+adventuresLeft);		
 		if(GM_getValue("olfact")) {
 			needtoolfact = true;
 // find "On the Trail" in full mode by using the description text in the font tags.
@@ -315,8 +315,6 @@ function drawButtons() {
 			else GM_setValue("olfactGo", false);
 		}
 	}
-	if (!isNaN(adventuresLeft)) GM_setValue("adventuresLeft", adventuresLeft);
-	else SGM_log("unable to read adventuresLeft in full-mode charpane!");
 	
 	var oMon = GM_getValue("olfactString","");
 	var oString = "click to automatically olfact a monster";
@@ -356,33 +354,6 @@ function drawButtons() {
 		tdArray[5].setAttribute('class','on');
 	if (GM_getValue("stopGo"))
 		tdArray[6].setAttribute('class','on');
-
-//	if (GM_getValue("hideme") == true) {
-//		var hidebuffer = "<tr><td title='click to re-enable button bar'>B</td>";
-//		newTable.innerHTML = hidebuffer;
-//		tdArray = newTable.getElementsByTagName("td");
-//		addEventListener(tdArray[0], 'click', function(event) {
-//			var hidden = GM_getValue("hideme");
-//			hidden = !hidden;
-//			GM_setValue("hideme",hidden);
-//		}, true);
-//		insertAt.parentNode.insertBefore(newTable, insertAt.nextSibling);
-//		return;
-//	}
-	
-	//  If currently auto-adventuring, show only A button.
-//	if (GM_getValue("repeatAdv") != OFF) {
-//		var A_only_buffer = "<td title='click to automatically adventure again; double-click to auto-adventure for a set number of rounds'>A</td>";
-//		newTable.innerHTML = A_only_buffer;
-//		tdArray = newTable.getElementsByTagName("td");
-//		if (GM_getValue("repeatAdv"))
-//			tdArray[0].setAttribute('class',(GM_getValue("repeatAdv") < 2)?'on':'half');
-//		if (GM_getValue("stopAdvAt") > turnsplayed && GM_getValue("stopAdvAt") > 0)
-//			tdArray[0].innerHTML = GM_getValue("stopAdvAt") - turnsplayed;
-//		activate_A_button(tdArray[0],adventuresLeft, turnsplayed);
-//		insertAt.parentNode.insertBefore(newTable, insertAt.nextSibling);
-//		return;
-//	}
 	
 	//add button functions
 	for (var i=0; i<tdArray.length; i++){
@@ -559,47 +530,6 @@ function drawButtons() {
 	insertAt.parentNode.insertBefore(newTable, insertAt.nextSibling);
 }
 
-//function activate_A_button(tdItem, adventuresLeft, turns_played) {
-//
-//	addEventListener(tdItem, 'contextmenu', function(event) {
-//		if (event.button == 2){
-//			event.stopPropagation();
-//			event.preventDefault();
-//		}
-//	}, false);
-//	addEventListener(tdItem, 'mousedown', function(event) {
-//		if (event.button == 2 && GM_getValue("repeatAdv") != GO_CONDITIONAL){
-//		  GM_setValue("repeatAdv", GO_CONDITIONAL);
-//		  this.setAttribute('class','half');
-//		}else if (event.button == 0 && GM_getValue("repeatAdv") != GO_ALWAYS){
-//		  GM_setValue("repeatAdv", GO_ALWAYS);
-//		  this.setAttribute('class','on');
-//		}else{
-//		  GM_setValue("repeatAdv", OFF);
-////				  SGM_log("ungreening A due to button-click");
-//		  this.setAttribute('class','off');
-//		}
-//	}, true);
-//	addEventListener(tdItem, 'dblclick', function(event) {
-//		var adventureLimit = parseInt(prompt('Auto-adventure for how many turns?'));
-//		if (adventureLimit > adventuresLeft) adventureLimit = adventuresLeft;
-//		else if (adventureLimit < 0 || !adventureLimit) adventureLimit = 0;
-//		if (adventureLimit > 0) {
-//			GM_setValue("stopAdvAt", turns_played + adventureLimit);
-//			GM_setValue("repeatAdv", GO_ALWAYS);
-//			this.innerHTML = adventureLimit;
-//			this.setAttribute('class','on');
-//		}else if (adventureLimit == 0){
-//			GM_setValue("stopAdvAt", turns_played);
-//			GM_setValue("repeatAdv", OFF);
-////					SGM_log("ungreening A due to 0 turns entered");
-//			this.innerHTML = 'A';
-//			this.setAttribute('class','off');
-//		}
-//	}, true);
-//}
-
-
 // Try to read in MP and HP values from the charpane
 //
 function grabMPHP() {
@@ -609,51 +539,15 @@ function grabMPHP() {
 }
 
 function readMPHP(response) {
+//	GM_log("api: " + response);
 	var CPInfo = JSON.parse(response);
-	var hp = CPInfo["hp"];
-	var maxhp = CPInfo["maxhp"];	
-	var mp = CPInfo["mp"];
-	var maxmp = CPInfo["maxmp"];
-	GM_setValue("HP",hp);
-	GM_setValue("MaxHP",maxhp);
-	GM_setValue("MP",mp);
-	GM_setValue("MaxMP",maxmp);
+	GM_setValue("HP",CPInfo["hp"]);
+	GM_setValue("MaxHP",CPInfo["maxhp"]);
+	GM_setValue("MP",CPInfo["mp"]);
+	GM_setValue("MaxMP",CPInfo["maxmp"]);
+	GM_setValue("adventuresLeft",CPInfo["adventures"]);
+	GM_log("hp:" + CPInfo["hp"] + " mp:" +CPInfo["mp"]);
 }
-
-//function grabmpHP() {
-//	var charpaneDoc = top.document.getElementsByName('charpane')[0].contentDocument.getElementsByTagName("body")[0];
-//	if (!charpaneDoc) { 
-//		SGM_log("no content available to process in grabMPHP(); continuing without extra info.");
-//		return;
-//	}
-//	var pageBodyText = charpaneDoc.innerHTML;
-//// full mode:
-//	var foo = document.querySelector("img[alt='Hit Points']");
-//	var foohp;
-//	if (foo) foohp = parseInt(foo.nextSibling.nextSibling.innerHTML);
-//	GM_log("hp = " + foohp);
-//	var HP = pageBodyText.match(/onclick='doc\("hp"\);'[^>]*>(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)<\/span>/);
-//	var MP = pageBodyText.match(/onclick='doc\("mp"\);'[^>]*>(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)<\/span>/);
-//	if (!HP) HP = pageBodyText.match(/onclick="doc\(&quot;hp&quot;\);"[^>]*>(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)<\/span>/);
-//	if (!MP) MP = pageBodyText.match(/onclick='doc\(&quot;mp&quot;\);'[^>]*>(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)<\/span>/);
-//// compact mode: 
-//	if (!HP) HP = pageBodyText.match(/HP:(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)/);
-//	if (!MP) MP = pageBodyText.match(/MP:(?:<[^<]+>)*(\d+)(?:<[^<]+>)*(?:\&nbsp;)?\/(?:\&nbsp;)?(\d+)/);
-//	
-//	if (HP) {
-//		GM_setValue("HP", Number(HP[1]));
-//		GM_setValue("MaxHP", Number(HP[2]));
-//	} else {
-//		SGM_log("grabMPHP(): Error - Regex used to extract HP/MaxHP failed to match anything.");
-//	}
-//	
-//	if (MP) {
-//		GM_setValue("MP", Number(MP[1]));
-//		GM_setValue("MaxMP", Number(MP[2]));
-//	} else {
-//		SGM_log("grabMPHP(): Error - Regex used to extract MP/MaxMP failed to match anything.");
-//	}
-//}
 
 function addInputButtons() {
 //	SGM_log("Creating fight-page buttons");
@@ -839,6 +733,7 @@ function stopAdventuring(msg) {
 // if forceframe <> 0, force the fight to load in frame 2 (mainpane) because this routine
 // is being called from a different frame.
 function doAutoAdv(forceframe) {
+	grabMPHP();
 	grabCombatInfo();
 	SGM_log("MP: "+GM_getValue("MP")+".  skillCost: "+GM_getValue("skillCost")+".  HP: "+GM_getValue("HP")+".  MonsterDamage: "+GM_getValue("MonsterDamage"));
 	SGM_log(" adventuresLeft: "+GM_getValue("adventuresLeft")+" stopAdvAt: "+GM_getValue("stopAdvAt")+" turns played:" +GM_getValue("turnsplayed"));
@@ -854,7 +749,8 @@ function doAutoAdv(forceframe) {
 		}
 	}
 
-	if ((GM_getValue("autoUse")%5 == USE_SKILL) && (GM_getValue("MP") < GM_getValue("skillCost"))) stopAdventuring("MP too low for auto-skillcasting.");
+	if ((GM_getValue("autoUse")%5 == USE_SKILL) && (GM_getValue("MP") < GM_getValue("skillCost"))) 
+		stopAdventuring("MP too low for auto-skillcasting (" + GM_getValue("MP") + "/" + GM_getValue("skillCost") + ").");
 	else if (GM_getValue("HP") < 1) stopAdventuring("got beat up!");
 	else if (GM_getValue("repeatAdv") == GO_CONDITIONAL && body.match(/You gain (?:a|some) Level/g)) stopAdventuring("Leveled up!");
 	else if (GM_getValue("MonsterDamage") * 1.1 >= GM_getValue("HP")) stopAdventuring("too risky to continue; HP vs Damage = "+GM_getValue("HP")+", "+GM_getValue("MonsterDamage"));
