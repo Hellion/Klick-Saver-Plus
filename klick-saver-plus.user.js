@@ -64,6 +64,7 @@ addEventListener(window, 'unload', unregisterEventListeners, false);
 
 //SGM_log("doc.loc.path="+document.location.pathname);
 
+// to display debug info for a bunch of stuff, comment out the return statement.
 function SGM_log(message) {
 	return;
 	GM_log(message);
@@ -71,70 +72,70 @@ function SGM_log(message) {
 
 switch(document.location.pathname) {
 //first screen post-login (?): initialize.
-  case "/main_c.html":
-  case "/game.php":
-  case "/main.html":
-	GM_setValue("autoUse", 0);				// OFF, ATTACK, USE_x 
-	GM_setValue("repeatAdv", 0);			// 0: off  1: normal  3: stop on specific item drops
-	GM_setValue("fightTurns", COUNTER);		// how many combat rounds have we gone?
-	GM_setValue("stopAdvAt", 0);			// stop adventuring when our turncount reaches this number.
-	GM_setValue("adventuresLeft", 0);		// turns showing in charpane
-	GM_setValue("storedSkill", 'none');		// save the 'normal' skill when we have to olfact
-	grabMPHP();
-	GM_setValue("skillCost",1);			// keep track of MP usage in-fight: what does our skill cost?
-	GM_setValue("cancelAtEnd",0);			// flag for use by buttons that attack or use item until end of combat.
-	GM_setValue("MonsterDamage",0);			// Smallest Monster damage received from this fight
-	GM_setValue("aborted",false);			// combat macro aborted, manual intervention necessary
-	GM_setValue("alreadyMacroed",false);	// auto-used a macro once this combat already
-	GM_setValue("redbox", 0);			// flag error conditions on auto-usages.
-	GM_setValue("hideme",false);			// minimize memory leakage with a choice to hide buttons when you're not gonna use 'em.
-	
-	if (!GM_getValue("turnLimit")) GM_setValue("turnLimit", AUTO_USE_LIMIT);
-	if (!GM_getValue("finisher")) GM_setValue("finisher", 0);
-	break;
+	case "/main_c.html":
+	case "/game.php":
+	case "/main.html":
+		GM_setValue("autoUse", 0);				// OFF, ATTACK, USE_x 
+		GM_setValue("repeatAdv", 0);			// 0: off  1: normal  3: stop on specific item drops
+		GM_setValue("fightTurns", COUNTER);		// how many combat rounds have we gone?
+		GM_setValue("stopAdvAt", 0);			// stop adventuring when our turncount reaches this number.
+		GM_setValue("adventuresLeft", 0);		// turns showing in charpane
+		GM_setValue("storedSkill", 'none');		// save the 'normal' skill when we have to olfact
+		GM_setValue("skillCost",1);			// keep track of MP usage in-fight: what does our skill cost?
+		GM_setValue("cancelAtEnd",0);			// flag for use by buttons that attack or use item until end of combat.
+		GM_setValue("MonsterDamage",0);			// Smallest Monster damage received from this fight
+		GM_setValue("aborted",false);			// combat macro aborted, manual intervention necessary
+		GM_setValue("alreadyMacroed",false);	// auto-used a macro once this combat already
+		GM_setValue("redbox", 0);			// flag error conditions on auto-usages.
+		GM_setValue("hideme",false);			// minimize memory leakage with a choice to hide buttons when you're not gonna use 'em.
+		grabMPHP();					// MP, HP, maxMP, maxHP.
+		if (!GM_getValue("turnLimit")) GM_setValue("turnLimit", AUTO_USE_LIMIT);
+		if (!GM_getValue("finisher")) GM_setValue("finisher", 0);
+		break;
 
-  case "/charpane.php":
-	SGM_log("processing charpane");
-	drawButtons();
-//	grabMPHP();
-//	if (GM_getValue("repeatAdv") != OFF) {
-//		var fightpaneDoc = top.document.getElementsByName('mainpane')[0].contentDocument.getElementsByTagName("body")[0];
-//		if (fightpaneDoc.innerHTML.indexOf("WINWINWIN") != -1) {
-//			var testturnsplayed = parseInt(GM_getValue("turnsplayed"),10);
-//			var fightturn = parseInt(GM_getValue("fightcompleteturn"),10);
-//			if ((fightturn+1) < testturnsplayed)  {
-//				SGM_log("fightwas = "+fightturn+"; turnsplayed="+testturnsplayed+"; Autoadventuring from charpane.");
-//				doAutoAdv(2);			
+	case "/charpane.php":
+		SGM_log("processing charpane");
+		drawButtons();
+//		grabMPHP();
+//		if (GM_getValue("repeatAdv") != OFF) {
+//			var fightpaneDoc = top.document.getElementsByName('mainpane')[0].contentDocument.getElementsByTagName("body")[0];
+//			if (fightpaneDoc.innerHTML.indexOf("WINWINWIN") != -1) {
+//				var testturnsplayed = parseInt(GM_getValue("turnsplayed"),10);
+//				var fightturn = parseInt(GM_getValue("fightcompleteturn"),10);
+//				if ((fightturn+1) < testturnsplayed)  {
+//					SGM_log("fightwas = "+fightturn+"; turnsplayed="+testturnsplayed+"; Autoadventuring from charpane.");
+//					doAutoAdv(2);			
+//				}
+//				else SGM_log("fightwas = "+fightturn+"; turnsplayed="+testturnsplayed+".  fightturn>=turnsplayed-1; leaving things alone.");
 //			}
-//			else SGM_log("fightwas = "+fightturn+"; turnsplayed="+testturnsplayed+".  fightturn>=turnsplayed-1; leaving things alone.");
+//			else SGM_log("not a fight, so not checking from charpane");
 //		}
-//		else SGM_log("not a fight, so not checking from charpane");
-//	}
-//	else SGM_log("repeatAdv is Off, not checking for advanture-again from charpane");
-	//SGM_log("mainpane="+fightpaneDoc.innerHTML);
-	break;
+//		else SGM_log("repeatAdv is Off, not checking for adventure-again from charpane");
+		//SGM_log("mainpane="+fightpaneDoc.innerHTML);
+		break;
 
-  case "/fight.php":
+	case "/fight.php":
 		doMainFight();
-	break;
-  case "/trickortreat.php":
+		break;
+	case "/trickortreat.php":
 		doHalloween();
-	break;
+		break;
 
-  case "/adventure.php":
-  case "/choice.php":
-  case "/ocean.php":
+	case "/adventure.php":
+	case "/choice.php":
+	case "/ocean.php":
 		grabMPHP();
 		GM_setValue("fightcompleteturn",GM_getValue("turnsplayed"));	// record this round as completed.
 		SGM_log("setting fightcompleteturn to "+GM_getValue("turnsplayed")+" from choice/adv/ocean");
-		if(GM_getValue("repeatAdv"))
+		if(GM_getValue("repeatAdv") != OFF)
 			doAutoAdv(0);
-	break;
+		break;
 
-  case "/account.php":
-		buildPrefs(); // setPrefs();
-	break;
+	case "/account.php":
+		buildPrefs();
+		break;
 }
+//end of top-level code.  function defs follow.
 
 function doMainFight() {
 	SGM_log("fight!");
@@ -348,9 +349,9 @@ function drawButtons() {
 	var tdArray = newTable.getElementsByTagName("td");
 	if (GM_getValue("autoUse") != OFF)
 		tdArray[GM_getValue("autoUse") - 1].setAttribute('class',GM_getValue("redbox") == 1 ? 'warn' : 'on');
-	if (GM_getValue("repeatAdv"))
+	if (GM_getValue("repeatAdv") != OFF)
 		tdArray[4].setAttribute('class',(GM_getValue("repeatAdv") < 2)?'on':'half');
-	if (GM_getValue("stopAdvAt") > turnsplayed && GM_getValue("stopAdvAt") > 0)
+	if (GM_getValue("stopAdvAt") > turnsplayed)
 		tdArray[4].textContent = (GM_getValue("stopAdvAt") - turnsplayed);
 	if (GM_getValue("olfact"))
 		tdArray[5].setAttribute('class','on');
@@ -672,8 +673,7 @@ function doAutoAdv(forceframe) {
 	}	
 	//Reset some values since combat is over
 	ResetCombatOptions();
-//	SGM_log("end-of-combat resets complete.");
-	if (GM_getValue("repeatAdv")) {
+	if (GM_getValue("repeatAdv") != OFF) {
 		addEventListener(window, 'load', function() {
 			var anchors = document.getElementsByTagName("a");
 			for (var i = 0; i < anchors.length; i++) {
@@ -859,7 +859,6 @@ function unregisterEventListeners(event)
 //		the auto-action until the end of this combat, rather than as a permanent thing.
 function AttackScript(setCancel) {
 	var macrotext = document.getElementsByName("macrotext");
-	if (setCancel && setCancel.type) GM_log("setCancel type=" + setCancel.type);
 	if (!macrotext.length) { 
 		GM_setValue("autoUse",ATTACK);
 		if (setCancel && setCancel.type && setCancel.type == 'click') GM_setValue("cancelAtEnd",1);
@@ -897,12 +896,11 @@ function ItemScript(setCancel) {
 function SkillScript(setCancel) {
 	var skillList=document.getElementsByName("whichskill");
 	if (skillList[0].selectedIndex == 0) {
-		SGM_log("No skill selected; abort.");
 		setToRed("no skill selected");
 	} else {
 		var costText = skillList[0].options[skillList[0].selectedIndex].text.match(/\d+/g);	// please never have a skill with a number in its name.
 		if (costText){
-			GM_log("cost="+Number(costText[0]));
+			SGM_log("cost="+Number(costText[0]));
 			GM_setValue("skillCost", Number(costText[0]));
 			GM_setValue("MP", GM_getValue("MP") - costText[0]);	// this will be inaccurate if we macro it, but hopefully that won't matter
 																// because we'll get correct values when the macro finishes.
@@ -927,7 +925,7 @@ function MacroScript(setCancel) {
 	}
 	var whichMacroRef = getSelectByName("whichmacro"); 
 	if (!whichMacroRef) {
-		SGM_log("no macro found, abort");
+		SGM_log("no macro selectbox found, abort");
 		return;
 	}
 	var macroChosen = whichMacroRef.selectedIndex;
@@ -937,7 +935,6 @@ function MacroScript(setCancel) {
 		return;
 	}
 	if (GM_getValue("aborted")) {
-		SGM_log("ABORTED flag set, aborting.");
 		setToRed("macro aborted");
 		GM_setValue("aborted",false);
 		return;
@@ -962,7 +959,7 @@ function FinishScript (evt) {
 		if(whichSkillRef.options[i].value == GM_getValue("finisher"))
 			whichSkillRef.selectedIndex = i;
 	if (whichSkillRef.selectedIndex == 0){
-		setToRed("finisher not in skilllist");
+		setToRed("finisher not in skill list");
 		return;
 	}
 	var costText = whichSkillRef.options[whichSkillRef.selectedIndex].text.match(/\d+/g);
@@ -978,7 +975,7 @@ function getSelectByName(name) {
 }
 
 function setToRed(message) {
-	GM_log("set to red because: "+message);
+	SGM_log("set to red because: "+message);
 	GM_setValue("redbox", 1);
 	top.document.getElementsByName('charpane')[0].contentDocument.location.reload();
 }
@@ -1029,7 +1026,7 @@ function doHalloween() {
 	//Reset some values since combat is over
 	ResetCombatOptions();
 	SGM_log("end-of-combat resets complete in doHalloween.");
-	if (GM_getValue("repeatAdv")) {
+	if (GM_getValue("repeatAdv") != OFF) {
 //		SGM_log("trick-or-treating again...");
 		document.forms[0].submit();
 	}
