@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Klick-saver Plus
-// @version        1.80
+// @version        1.81
 // @namespace      http://kobe.cool.ne.jp/yehman/
 // @homepage       http://www.frogorbits.com/kol/
 // @copyright      © 2010 Nathan Sharfi, Shawn Yeh, and Nick England
@@ -17,7 +17,7 @@
 // @include        *kingdomofloathing.com/fight.php*
 // @include        *kingdomofloathing.com/charpane.php
 // @include        *kingdomofloathing.com/adventure.php*
-// @include        *kingdomofloathing.com/choice.php
+// @include        *kingdomofloathing.com/choice.php*
 // @include        *kingdomofloathing.com/ocean.php
 // @include        *kingdomofloathing.com/account.php
 // @exclude        forums*kingdomofloathing.com*
@@ -66,10 +66,10 @@ addEventListener(window, 'unload', unregisterEventListeners, false);
 
 // to display debug info for a bunch of stuff, comment out the return statement.
 function SGM_log(message) {
-	return;
+//	return;
 	GM_log(message);
 }
-
+GM_log("doc.loc.path=" + document.location.pathname);
 switch(document.location.pathname) {
 //first screen post-login (?): initialize.
 	case "/main_c.html":
@@ -96,22 +96,6 @@ switch(document.location.pathname) {
 	case "/charpane.php":
 		SGM_log("processing charpane");
 		drawButtons();
-//		grabMPHP();
-//		if (GM_getValue("repeatAdv") != OFF) {
-//			var fightpaneDoc = top.document.getElementsByName('mainpane')[0].contentDocument.getElementsByTagName("body")[0];
-//			if (fightpaneDoc.innerHTML.indexOf("WINWINWIN") != -1) {
-//				var testturnsplayed = parseInt(GM_getValue("turnsplayed"),10);
-//				var fightturn = parseInt(GM_getValue("fightcompleteturn"),10);
-//				if ((fightturn+1) < testturnsplayed)  {
-//					SGM_log("fightwas = "+fightturn+"; turnsplayed="+testturnsplayed+"; Autoadventuring from charpane.");
-//					doAutoAdv(2);			
-//				}
-//				else SGM_log("fightwas = "+fightturn+"; turnsplayed="+testturnsplayed+".  fightturn>=turnsplayed-1; leaving things alone.");
-//			}
-//			else SGM_log("not a fight, so not checking from charpane");
-//		}
-//		else SGM_log("repeatAdv is Off, not checking for adventure-again from charpane");
-		//SGM_log("mainpane="+fightpaneDoc.innerHTML);
 		break;
 
 	case "/fight.php":
@@ -213,7 +197,6 @@ function doMainFight() {
 	
 // "Quit adventuring when you hit this string" processing.
 	if(GM_getValue("stopGo")) {	
-//		SGM_log("checking for stopGo");
 		if (document.body.innerHTML.indexOf(GM_getValue("stopString")) != -1) 
 		{	stopAdventuring("hit Quit-On text.");
 			//GM_setValue("stopGo", false);				// uncomment this to force re-clicking in order to re-halt.
@@ -225,7 +208,6 @@ function doMainFight() {
 		grabMPHP();
 
 	if (!body.match(/WINWINW|Adventure Again|Go back to /g)){		// still in combat? (no win marker/ no adventure again/ no go back?)
-//		SGM_log("still fighting")
 		var turns = GM_getValue("fightTurns");
 		
 		if (body.match(/Macro Aborted|You twiddle your thumbs|Invalid macro command/)) {
@@ -265,8 +247,8 @@ function drawButtons() {
 	turnsplayed = unsafeWindow.turnsplayed;
 	GM_setValue("turnsplayed", turnsplayed);
 	//render the button layout
-	// the variable needtoolfact is a flag to indicate whether or not "On the Trail" is a currently active effect
-	// (i.e. are we already olfacting something).  If True, then we need to olfact ASAP.
+	// needtoolfact is a flag to indicate whether or not "On the Trail" is a currently active effect
+	// (i.e. are we already olfacting something).  If flag=True (no olfacting active), then we need to olfact ASAP.
 	var needtoolfact = false;
 	var fullTest = document.getElementsByTagName("a")[0]; 
 	if (!fullTest) {
@@ -393,7 +375,6 @@ function drawButtons() {
 function generic_click(event) {
 	var myID = this.getAttribute('id');		//"KSP_button_X"
 	var myCode = parseInt(myID.substring(11),10);	//"X" -> 1-4
-//	GM_log("myID = " + myID + ", myCode = "+myCode);
 	if (GM_getValue("autoUse") == myCode) {
 		GM_setValue("autoUse", OFF);
 		this.setAttribute('class','off');
@@ -512,7 +493,7 @@ function Q_dblclick(event) {
 	event.preventDefault();
 }
 
-// Try to read in MP and HP values from the charpane
+// Try to read in MP and HP values 
 //
 function grabMPHP() {
 	GM_get("/api.php?what=status&for=KlickSaverPlus",function(response) {
@@ -521,18 +502,15 @@ function grabMPHP() {
 }
 
 function readMPHP(response) {
-//	GM_log("api: " + response);
 	var CPInfo = JSON.parse(response);
 	GM_setValue("HP",CPInfo["hp"]);
 	GM_setValue("MaxHP",CPInfo["maxhp"]);
 	GM_setValue("MP",CPInfo["mp"]);
 	GM_setValue("MaxMP",CPInfo["maxmp"]);
 	GM_setValue("adventuresLeft",CPInfo["adventures"]);
-//	GM_log("hp:" + CPInfo["hp"] + " mp:" +CPInfo["mp"]);
 }
 
 function addInputButtons() {
-//	SGM_log("Creating fight-page buttons");
 	// for attacking until the end of the round
     var NewAttack = document.createElement('input');
 	NewAttack.setAttribute('class','button');
@@ -642,6 +620,7 @@ function stopAdventuring(msg) {
 // Automatically click the Adventure Again button from the fight screen
 // if forceframe <> 0, force the fight to load in frame 2 (mainpane) because this routine
 // is being called from a different frame.
+// (hopefully that functionality is no longer necessary.)
 function doAutoAdv(forceframe) {
 	grabMPHP();
 	grabCombatInfo();
@@ -677,10 +656,14 @@ function doAutoAdv(forceframe) {
 		addEventListener(window, 'load', function() {
 			var anchors = document.getElementsByTagName("a");
 			for (var i = 0; i < anchors.length; i++) {
-				if (((anchors[i].getAttribute('href')) && (anchors[i].getAttribute("href").indexOf("adventure.php") != -1)) ) {
-//				||	((anchors[i].getAttribute('href')) && (anchors[i].getAttribute("href").indexOf("plains.php?action=brushfire") != -1)) 
-//				||	((anchors[i].getAttribute('href')) && (anchors[i].getAttribute("href").indexOf("invasion.php?action") != -1))) {
-//					SGM_log("href="+anchors[i].getAttribute('href')+"; using anchor "+i);
+                var anchori_href = anchors[i].getAttribute('href') || "-";
+				if ((anchori_href.indexOf("adventure.php") != -1) 
+//				||	(anchori_href.indexOf("plains.php?action=brushfire") != -1)     //expired world event
+//				||	(anchori_href.indexOf("invasion.php?action") != -1)             //expired world event
+				||  (anchori_href.indexOf("action=trickortreat") != -1)             //new trick-or-treat combat
+                ||  (anchori_href.indexOf("choice.php?whichchoice=804&pwd") != -1)  //new trick-or-treat noncombat
+				||  (anchori_href.indexOf("cellar.php?action=autofaucet") != -1))   {
+					SGM_log("href="+anchori_href+"; using anchor "+i);
 					if (forceframe == 2) { 
 						SGM_log("adventuring again from doAutoAdv() via charpane");
 						parent.frames[2].location = anchors[i];
@@ -693,7 +676,6 @@ function doAutoAdv(forceframe) {
 			}
 		}, false);
 	}
-//	SGM_log("done doAutoAdv");
 }
 
 function buildPrefs()
